@@ -1159,7 +1159,7 @@ def main():
             </div>
             <div>
                 <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
-                <p>Visão On-line Única | Camada Silver & Gold (workspace.silver / workspace.gold) | Eliminação Patrimonial e Resultado</p>
+                <p>Visão On-line | Camada Silver & Gold | Eliminação Patrimonial e Resultado</p>
             </div>
         </div>
         """,
