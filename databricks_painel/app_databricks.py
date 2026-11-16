@@ -43,6 +43,18 @@ def formatar_brl(valor: float | None) -> str:
     return f"-R$ {s}" if negativo else f"R$ {s}"
 
 
+def renderizar_kpi_cards(cards: list[tuple[str, str]]) -> None:
+    cols_html = ""
+    for rotulo, valor in cards:
+        cols_html += f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{rotulo}</div>
+            <div class="kpi-value">{valor}</div>
+        </div>
+        """
+    st.markdown(f'<div class="kpi-grid">{cols_html}</div>', unsafe_allow_html=True)
+
+
 def obter_estado_patrimonial() -> dict:
     if ESTADO_PATRIMONIAL_JSON.exists():
         return json.loads(ESTADO_PATRIMONIAL_JSON.read_text(encoding="utf-8"))
@@ -156,6 +168,33 @@ def main() -> None:
             color: #C7A6E8 !important;
             font-size: 0.9rem !important;
             margin: 4px 0 0 0 !important;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+            gap: 12px;
+            margin: 10px 0 18px 0;
+        }
+        .kpi-card {
+            background-color: #FFFFFF;
+            border: 1px solid #C7A6E8;
+            border-left: 5px solid #5A189A;
+            padding: 12px 14px;
+            border-radius: 4px;
+        }
+        .kpi-label {
+            color: #6E6E6E;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+        .kpi-value {
+            color: #2B0A4E;
+            font-size: 1.15rem;
+            font-weight: 700;
+            line-height: 1.25;
+            white-space: normal;
+            word-break: break-word;
         }
         div[data-testid="stMetric"] {
             background-color: #FFFFFF;
@@ -294,12 +333,13 @@ def main() -> None:
         soma_j = sum(r["dif_liquida_atual"] for r in filtrados_pat)
         soma_k = sum(r["dif_liquida_anterior"] for r in filtrados_pat)
 
-        k1, k2, k3, k4, k5 = st.columns(5)
-        k1.metric("Cruzamentos Ativos", f"{len(filtrados_pat)} de {len(registros_pat)}")
-        k2.metric("Empresa Origem — Ativo (1)", formatar_brl(soma_d))
-        k3.metric("Empresa Origem — Passivo (2)", formatar_brl(soma_e))
-        k4.metric("Dif. Líquida Atual (Ago/26)", formatar_brl(soma_j))
-        k5.metric("Dif. Líquida Anterior (Jul/26)", formatar_brl(soma_k))
+        renderizar_kpi_cards([
+            ("Cruzamentos Ativos", f"{len(filtrados_pat)} de {len(registros_pat)}"),
+            ("Empresa Origem — Ativo (1)", formatar_brl(soma_d)),
+            ("Empresa Origem — Passivo (2)", formatar_brl(soma_e)),
+            ("Dif. Líquida Atual (Ago/26)", formatar_brl(soma_j)),
+            ("Dif. Líquida Anterior (Jul/26)", formatar_brl(soma_k)),
+        ])
 
         sub_elim, sub_sum, sub_temas = st.tabs(
             [
@@ -340,7 +380,7 @@ def main() -> None:
                 key="editor_patrimonial",
             )
 
-            if st.button("Recalcular Fórmulas e Salvar Alterações (Patrimonial)", icon=":material/save:", type="primary", key="btn_save_pat"):
+            if st.button(":material/save: Recalcular Fórmulas e Salvar Alterações (Patrimonial)", type="primary", key="btn_save_pat"):
                 mapa_editados = {r["cruzamento"]: r for r in editados_pat if r.get("cruzamento")}
                 nova_lista = []
                 for orig in registros_pat:
@@ -418,7 +458,7 @@ def main() -> None:
             key="editor_resultado",
         )
 
-        if st.button("Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", icon=":material/save:", type="primary", key="btn_save_res"):
+        if st.button(":material/save: Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", type="primary", key="btn_save_res"):
             for r in editados_res:
                 r["jul_inef_liq"] = round(
                     float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2

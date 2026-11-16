@@ -6,8 +6,6 @@ Paleta oficial extraída do Documento Funcional (#5A189A, #2B0A4E, #C7A6E8, #6E6
 
 from __future__ import annotations
 import json
-import os
-from pathlib import Path
 import streamlit as st
 
 STATUS_ANALISTA_OPCOES = [
@@ -1029,6 +1027,18 @@ def formatar_brl(valor):
     return f"-R$ {s}" if neg else f"R$ {s}"
 
 
+def renderizar_kpi_cards(cards: list[tuple[str, str]]) -> None:
+    cols_html = ""
+    for rotulo, valor in cards:
+        cols_html += f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{rotulo}</div>
+            <div class="kpi-value">{valor}</div>
+        </div>
+        """
+    st.markdown(f'<div class="kpi-grid">{cols_html}</div>', unsafe_allow_html=True)
+
+
 def recalcular_aba_sum(registros):
     agrupado = {}
     for r in registros:
@@ -1065,11 +1075,6 @@ def main():
     if "dados_res" not in st.session_state:
         st.session_state.dados_res = json.loads(json.dumps(DADOS_INICIAIS_RESULTADO))
 
-    # Cores sólidas oficiais do Documento Funcional:
-    # Roxo Principal (Cabeçalho Tabelas): #5A189A
-    # Roxo Escuro (Títulos): #2B0A4E
-    # Lilás Borda/Destaque Secundário: #C7A6E8
-    # Cinza Texto Secundário: #6E6E6E
     st.markdown(
         """
         <style>
@@ -1107,19 +1112,32 @@ def main():
             font-size: 0.9rem !important;
             margin: 4px 0 0 0 !important;
         }
-        div[data-testid="stMetric"] {
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+            gap: 12px;
+            margin: 10px 0 18px 0;
+        }
+        .kpi-card {
             background-color: #FFFFFF;
             border: 1px solid #C7A6E8;
             border-left: 5px solid #5A189A;
-            padding: 12px 16px;
+            padding: 12px 14px;
             border-radius: 4px;
         }
-        div[data-testid="stMetricLabel"] p {
-            color: #6E6E6E !important;
-            font-weight: 600 !important;
+        .kpi-label {
+            color: #6E6E6E;
+            font-size: 0.82rem;
+            font-weight: 600;
+            margin-bottom: 6px;
         }
-        div[data-testid="stMetricValue"] {
-            color: #2B0A4E !important;
+        .kpi-value {
+            color: #2B0A4E;
+            font-size: 1.15rem;
+            font-weight: 700;
+            line-height: 1.25;
+            white-space: normal;
+            word-break: break-word;
         }
         button[kind="primary"] {
             background-color: #5A189A !important;
@@ -1201,12 +1219,13 @@ def main():
         elif ord_por == "Responsável":
             filtrados.sort(key=lambda x: (x["responsavel"], x["cruzamento"]))
 
-        k1, k2, k3, k4, k5 = st.columns(5)
-        k1.metric("Cruzamentos", f"{len(filtrados)} / {len(registros_pat)}")
-        k2.metric("Ativo (1) Origem", formatar_brl(sum(r["ativo_1"] for r in filtrados)))
-        k3.metric("Passivo (2) Origem", formatar_brl(sum(r["passivo_2"] for r in filtrados)))
-        k4.metric("Dif. Líquida Ago/26 (J)", formatar_brl(sum(r["dif_liquida_atual"] for r in filtrados)))
-        k5.metric("Dif. Líquida Jul/26 (K)", formatar_brl(sum(r["dif_liquida_anterior"] for r in filtrados)))
+        renderizar_kpi_cards([
+            ("Cruzamentos Ativos", f"{len(filtrados)} / {len(registros_pat)}"),
+            ("Ativo (1) Origem", formatar_brl(sum(r["ativo_1"] for r in filtrados))),
+            ("Passivo (2) Origem", formatar_brl(sum(r["passivo_2"] for r in filtrados))),
+            ("Dif. Líquida Ago/26 (J)", formatar_brl(sum(r["dif_liquida_atual"] for r in filtrados))),
+            ("Dif. Líquida Jul/26 (K)", formatar_brl(sum(r["dif_liquida_anterior"] for r in filtrados))),
+        ])
 
         t_elim, t_sum, t_temas = st.tabs([
             ":material/table_chart: Aba Elimináveis",
@@ -1240,7 +1259,7 @@ def main():
                 },
                 key="ed_pat",
             )
-            if st.button("Recalcular Fórmulas e Atualizar Painel Patrimonial", icon=":material/save:", type="primary"):
+            if st.button(":material/save: Recalcular Fórmulas e Atualizar Painel Patrimonial", type="primary", key="btn_save_pat"):
                 mapa = {r["cruzamento"]: r for r in editados if r.get("cruzamento")}
                 for r in registros_pat:
                     if r["cruzamento"] in mapa:
@@ -1255,6 +1274,13 @@ def main():
 
     with aba_res:
         registros_res = st.session_state.dados_res
+        renderizar_kpi_cards([
+            ("Cruzamentos Resultado", f"{len(registros_res)}"),
+            ("Soma Inef. Líq. Julho", formatar_brl(sum(r["jul_inef_liq"] for r in registros_res))),
+            ("Soma Inef. Líq. Agosto", formatar_brl(sum(r["ago_inef_liq"] for r in registros_res))),
+            ("Soma Dif. Real Acum. (Col AR)", formatar_brl(sum(r["dif_real_acumulada_ar"] for r in registros_res))),
+        ])
+
         ed_res = st.data_editor(
             registros_res,
             use_container_width=True,
@@ -1280,7 +1306,7 @@ def main():
             },
             key="ed_res",
         )
-        if st.button("Recalcular Ineficiência Líquida e Colunas AR/AS", icon=":material/save:", type="primary"):
+        if st.button(":material/save: Recalcular Ineficiência Líquida e Colunas AR/AS", type="primary", key="btn_save_res"):
             for r in ed_res:
                 r["jul_inef_liq"] = round(float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2)
                 c = calcular_metricas_resultado(r.get("ago_inef_trib"), r.get("ago_diferenca"), r.get("jul_diferenca"))
