@@ -1,7 +1,7 @@
 """
 Databricks App Autocontido (Arquivo Único: app.py)
 Painel de Controle Intercompany — Fase 2 (Eliminação Patrimonial e Resultado)
-Funciona diretamente no Databricks Apps sem depender de módulos ou arquivos externos.
+Paleta oficial extraída do Documento Funcional (#5A189A, #2B0A4E, #C7A6E8, #6E6E6E, #FFFFFF).
 """
 
 from __future__ import annotations
@@ -1054,44 +1054,103 @@ def recalcular_aba_sum(registros):
 
 
 def main():
-    st.set_page_config(page_title="Painel Intercompany — Vivo / Telefônica", layout="wide")
+    st.set_page_config(
+        page_title="Painel Intercompany — Fechamento Contábil",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
     if "dados_pat" not in st.session_state:
         st.session_state.dados_pat = json.loads(json.dumps(DADOS_INICIAIS_PATRIMONIAL))
     if "dados_res" not in st.session_state:
         st.session_state.dados_res = json.loads(json.dumps(DADOS_INICIAIS_RESULTADO))
 
+    # Cores sólidas oficiais do Documento Funcional:
+    # Roxo Principal (Cabeçalho Tabelas): #5A189A
+    # Roxo Escuro (Títulos): #2B0A4E
+    # Lilás Borda/Destaque Secundário: #C7A6E8
+    # Cinza Texto Secundário: #6E6E6E
     st.markdown(
         """
         <style>
-        .vivo-header {
-            background: linear-gradient(90deg, #380054 0%, #660099 60%, #0B1F4D 100%);
-            padding: 18px 26px;
-            border-radius: 12px;
-            color: white;
-            margin-bottom: 18px;
+        .doc-header {
+            background-color: #5A189A;
+            border-bottom: 4px solid #2B0A4E;
+            padding: 18px 24px;
+            border-radius: 6px;
+            color: #FFFFFF;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
-        .vivo-header h1 { color: white !important; font-size: 1.6rem !important; margin: 0 !important; }
-        .vivo-header p { color: #E2D4F0 !important; font-size: 0.92rem !important; margin: 4px 0 0 0 !important; }
+        .doc-header-icon {
+            background-color: #2B0A4E;
+            border: 1px solid #C7A6E8;
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .doc-header h1 {
+            color: #FFFFFF !important;
+            font-size: 1.45rem !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .doc-header p {
+            color: #C7A6E8 !important;
+            font-size: 0.9rem !important;
+            margin: 4px 0 0 0 !important;
+        }
         div[data-testid="stMetric"] {
-            background-color: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            border-left: 5px solid #660099;
+            background-color: #FFFFFF;
+            border: 1px solid #C7A6E8;
+            border-left: 5px solid #5A189A;
             padding: 12px 16px;
-            border-radius: 8px;
+            border-radius: 4px;
+        }
+        div[data-testid="stMetricLabel"] p {
+            color: #6E6E6E !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="stMetricValue"] {
+            color: #2B0A4E !important;
+        }
+        button[kind="primary"] {
+            background-color: #5A189A !important;
+            border-color: #2B0A4E !important;
+            color: #FFFFFF !important;
+        }
+        button[kind="primary"]:hover {
+            background-color: #2B0A4E !important;
+            border-color: #2B0A4E !important;
         }
         </style>
-        <div class="vivo-header">
-            <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
-            <p>Visão On-line Única • Camada Silver & Gold (workspace.silver / workspace.gold) • Eliminação Patrimonial e Resultado</p>
+        <div class="doc-header">
+            <div class="doc-header-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+            </div>
+            <div>
+                <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
+                <p>Visão On-line Única | Camada Silver & Gold (workspace.silver / workspace.gold) | Eliminação Patrimonial e Resultado</p>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
     aba_pat, aba_res = st.tabs([
-        "📊 Item 7: Painel Eliminação Patrimonial (Abas Elimináveis, Sum e Temas)",
-        "📈 Item 8: Painel Eliminação Resultado & Validador Silver",
+        ":material/account_balance: Item 7: Painel Eliminação Patrimonial (Abas Elimináveis, Sum e Temas)",
+        ":material/analytics: Item 8: Painel Eliminação Resultado & Validador Silver",
     ])
 
     with aba_pat:
@@ -1109,7 +1168,10 @@ def main():
         with c5:
             ord_por = st.selectbox("Ordenar por", ["Ordem Padrão", "Empresa (A-Z)", "Maior Dif. Líquida", "Menor Dif. Líquida", "Responsável"])
 
-        busca = st.text_input("🔍 Buscar por Empresa ou Comentários", placeholder="Ex.: TBRA x ITIS, Azure, provisão...")
+        busca = st.text_input(
+            "Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
+            placeholder="Ex.: TBRA x ITIS, Azure, provisão...",
+        )
 
         filtrados = []
         for r in registros_pat:
@@ -1146,7 +1208,11 @@ def main():
         k4.metric("Dif. Líquida Ago/26 (J)", formatar_brl(sum(r["dif_liquida_atual"] for r in filtrados)))
         k5.metric("Dif. Líquida Jul/26 (K)", formatar_brl(sum(r["dif_liquida_anterior"] for r in filtrados)))
 
-        t_elim, t_sum, t_temas = st.tabs(["📋 Aba Elimináveis", "📊 Aba Sum (Por Analista)", "📌 Aba Temas Principais"])
+        t_elim, t_sum, t_temas = st.tabs([
+            ":material/table_chart: Aba Elimináveis",
+            ":material/summarize: Aba Sum (Por Analista)",
+            ":material/bookmark_manager: Aba Temas Principais",
+        ])
         with t_elim:
             editados = st.data_editor(
                 filtrados,
@@ -1174,13 +1240,13 @@ def main():
                 },
                 key="ed_pat",
             )
-            if st.button("💾 Recalcular Fórmulas e Atualizar Painel Patrimonial", type="primary"):
+            if st.button("Recalcular Fórmulas e Atualizar Painel Patrimonial", icon=":material/save:", type="primary"):
                 mapa = {r["cruzamento"]: r for r in editados if r.get("cruzamento")}
                 for r in registros_pat:
                     if r["cruzamento"] in mapa:
                         r.update(mapa[r["cruzamento"]])
                         r.update(calcular_metricas_patrimonial(r["ativo_1"], r["passivo_2"], r["ativo_3"], r["passivo_4"], r["dif_liquida_anterior"]))
-                st.success("Fórmulas e status atualizados!")
+                st.success("Fórmulas e status atualizados com sucesso.")
 
         with t_sum:
             st.dataframe(recalcular_aba_sum(registros_pat), use_container_width=True)
@@ -1214,7 +1280,7 @@ def main():
             },
             key="ed_res",
         )
-        if st.button("💾 Recalcular Ineficiência Líquida e Colunas AR/AS", type="primary"):
+        if st.button("Recalcular Ineficiência Líquida e Colunas AR/AS", icon=":material/save:", type="primary"):
             for r in ed_res:
                 r["jul_inef_liq"] = round(float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2)
                 c = calcular_metricas_resultado(r.get("ago_inef_trib"), r.get("ago_diferenca"), r.get("jul_diferenca"))
@@ -1222,7 +1288,7 @@ def main():
                 r["dif_real_acumulada_ar"] = c["dif_real_acumulada_ar"]
                 r["sugestao_diferenca_as"] = c["sugestao_diferenca_as"]
             st.session_state.dados_res = ed_res
-            st.success("Painel de Resultado recalculado!")
+            st.success("Painel de Resultado recalculado com sucesso.")
 
 
 if __name__ == "__main__":

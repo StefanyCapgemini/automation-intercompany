@@ -3,6 +3,7 @@ Databricks App — Painel de Controle Intercompany (Fase 2)
 Itens 7 e 8:
   - Painel de Eliminação Patrimonial (Abas: Elimináveis, Sum, Temas Principais)
   - Painel de Eliminação de Resultado + Validador Automático na Camada Silver
+Paleta oficial extraída do Documento Funcional (#5A189A, #2B0A4E, #C7A6E8, #6E6E6E, #FFFFFF).
 """
 
 from __future__ import annotations
@@ -114,7 +115,7 @@ def recalcular_aba_sum(registros_eliminaveis: list[dict]) -> list[dict]:
 
 def main() -> None:
     st.set_page_config(
-        page_title="Painel Intercompany — Vivo / Telefônica",
+        page_title="Painel Intercompany — Fechamento Contábil",
         layout="wide",
         initial_sidebar_state="collapsed",
     )
@@ -122,35 +123,76 @@ def main() -> None:
     st.markdown(
         """
         <style>
-        .vivo-header {
-            background: linear-gradient(90deg, #380054 0%, #660099 60%, #0B1F4D 100%);
-            padding: 18px 26px;
-            border-radius: 12px;
-            color: white;
-            margin-bottom: 18px;
+        .doc-header {
+            background-color: #5A189A;
+            border-bottom: 4px solid #2B0A4E;
+            padding: 18px 24px;
+            border-radius: 6px;
+            color: #FFFFFF;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
         }
-        .vivo-header h1 {
-            color: white !important;
-            font-size: 1.65rem !important;
+        .doc-header-icon {
+            background-color: #2B0A4E;
+            border: 1px solid #C7A6E8;
+            width: 44px;
+            height: 44px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .doc-header h1 {
+            color: #FFFFFF !important;
+            font-size: 1.45rem !important;
+            font-weight: 700 !important;
             margin: 0 !important;
             padding: 0 !important;
         }
-        .vivo-header p {
-            color: #E2D4F0 !important;
-            font-size: 0.92rem !important;
+        .doc-header p {
+            color: #C7A6E8 !important;
+            font-size: 0.9rem !important;
             margin: 4px 0 0 0 !important;
         }
         div[data-testid="stMetric"] {
-            background-color: #F8FAFC;
-            border: 1px solid #E2E8F0;
-            border-left: 5px solid #660099;
+            background-color: #FFFFFF;
+            border: 1px solid #C7A6E8;
+            border-left: 5px solid #5A189A;
             padding: 12px 16px;
-            border-radius: 8px;
+            border-radius: 4px;
+        }
+        div[data-testid="stMetricLabel"] p {
+            color: #6E6E6E !important;
+            font-weight: 600 !important;
+        }
+        div[data-testid="stMetricValue"] {
+            color: #2B0A4E !important;
+        }
+        button[kind="primary"] {
+            background-color: #5A189A !important;
+            border-color: #2B0A4E !important;
+            color: #FFFFFF !important;
+        }
+        button[kind="primary"]:hover {
+            background-color: #2B0A4E !important;
+            border-color: #2B0A4E !important;
         }
         </style>
-        <div class="vivo-header">
-            <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
-            <p>Visão On-line Única • Camada Silver & Gold (Catálogo: <b>workspace.silver</b> / <b>workspace.gold</b>) • Eliminação Patrimonial e Resultado</p>
+        <div class="doc-header">
+            <div class="doc-header-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+            </div>
+            <div>
+                <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
+                <p>Visão On-line Única | Camada Silver & Gold (Catálogo: <b>workspace.silver</b> / <b>workspace.gold</b>) | Eliminação Patrimonial e Resultado</p>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -158,9 +200,9 @@ def main() -> None:
 
     aba_patrimonial, aba_resultado, aba_arquitetura = st.tabs(
         [
-            "📊 Item 7: Painel Eliminação Patrimonial",
-            "📈 Item 8: Painel Eliminação Resultado & Validador Silver",
-            "⚙️ Tabelas Unity Catalog (workspace.silver / workspace.gold)",
+            ":material/account_balance: Item 7: Painel Eliminação Patrimonial",
+            ":material/analytics: Item 8: Painel Eliminação Resultado & Validador Silver",
+            ":material/database: Tabelas Unity Catalog (workspace.silver / workspace.gold)",
         ]
     )
 
@@ -198,8 +240,8 @@ def main() -> None:
             )
 
         busca_texto = st.text_input(
-            "🔍 Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
-            placeholder="Digite p/ filtrar instantaneamente (ex.: TBRA x ITIS, Azure, provisão, Beatriz...)",
+            "Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
+            placeholder="Digite para filtrar instantaneamente (ex.: TBRA x ITIS, Azure, provisão, Beatriz...)",
         )
 
         filtrados_pat = []
@@ -261,9 +303,9 @@ def main() -> None:
 
         sub_elim, sub_sum, sub_temas = st.tabs(
             [
-                "Aba Elimináveis (Tabela Principal Editável)",
-                "Aba Sum (Resumo Consolidado por Analista)",
-                "Aba Temas Principais (Desconciliado)",
+                ":material/table_chart: Aba Elimináveis (Tabela Principal Editável)",
+                ":material/summarize: Aba Sum (Resumo Consolidado por Analista)",
+                ":material/bookmark_manager: Aba Temas Principais (Desconciliado)",
             ]
         )
 
@@ -298,7 +340,7 @@ def main() -> None:
                 key="editor_patrimonial",
             )
 
-            if st.button("Recalcular Fórmulas e Salvar Alterações (Patrimonial)", type="primary", key="btn_save_pat"):
+            if st.button("Recalcular Fórmulas e Salvar Alterações (Patrimonial)", icon=":material/save:", type="primary", key="btn_save_pat"):
                 mapa_editados = {r["cruzamento"]: r for r in editados_pat if r.get("cruzamento")}
                 nova_lista = []
                 for orig in registros_pat:
@@ -328,7 +370,7 @@ def main() -> None:
                 dados_pat["eliminaveis"] = nova_lista
                 dados_pat["sum"] = recalcular_aba_sum(nova_lista)
                 salvar_estado_patrimonial(dados_pat)
-                st.success("Fórmulas recalculadas e painel atualizado com sucesso!")
+                st.success("Fórmulas recalculadas e painel atualizado com sucesso.")
 
         with sub_sum:
             st.subheader("Resumo Consolidado por Analista (Aba Sum)")
@@ -376,7 +418,7 @@ def main() -> None:
             key="editor_resultado",
         )
 
-        if st.button("Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", type="primary", key="btn_save_res"):
+        if st.button("Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", icon=":material/save:", type="primary", key="btn_save_res"):
             for r in editados_res:
                 r["jul_inef_liq"] = round(
                     float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2
@@ -390,7 +432,7 @@ def main() -> None:
                 r["dif_real_acumulada_ar"] = calc_r["dif_real_acumulada_ar"]
                 r["sugestao_diferenca_as"] = calc_r["sugestao_diferenca_as"]
             salvar_estado_resultado(editados_res)
-            st.success("Painel de Resultado e indicadores AR/AS atualizados!")
+            st.success("Painel de Resultado e indicadores AR/AS atualizados com sucesso.")
 
         st.divider()
         st.subheader("Validador Automático na Camada Silver (Substitui Planilha Resultado_v10 Manual)")
