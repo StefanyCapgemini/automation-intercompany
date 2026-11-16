@@ -1,14 +1,10 @@
 command:
   - "streamlit"
   - "run"
-  - "app_databricks.py"
-  - "--server.port"
-  - "8000"
+  - "app.py"
 env:
-  - name: "DATABRICKS_WAREHOUSE_ID"
-    valueFrom: "sql-warehouse"
   - name: "DATABRICKS_CATALOG"
-    value: "intercompany"
+    value: "workspace"
   - name: "DATABRICKS_SCHEMA_SILVER"
     value: "silver"
   - name: "DATABRICKS_SCHEMA_GOLD"

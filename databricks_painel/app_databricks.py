@@ -7,6 +7,7 @@ Itens 7 e 8:
 
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 import streamlit as st
 
@@ -30,16 +31,27 @@ PLANILHA_OFICIAL = (
 )
 ESTADO_PATRIMONIAL_JSON = BASE_DIR / "state_patrimonial.json"
 ESTADO_RESULTADO_JSON = BASE_DIR / "state_resultado.json"
+CATALOGO = os.getenv("DATABRICKS_CATALOG", "workspace")
+
+
+def formatar_brl(valor: float | None) -> str:
+    if valor is None:
+        return "R$ 0,00"
+    negativo = valor < 0
+    s = f"{abs(valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"-R$ {s}" if negativo else f"R$ {s}"
 
 
 def obter_estado_patrimonial() -> dict:
     if ESTADO_PATRIMONIAL_JSON.exists():
         return json.loads(ESTADO_PATRIMONIAL_JSON.read_text(encoding="utf-8"))
-    dados = carregar_painel_patrimonial_xlsx(PLANILHA_OFICIAL)
-    ESTADO_PATRIMONIAL_JSON.write_text(
-        json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
-    return dados
+    if PLANILHA_OFICIAL.exists():
+        dados = carregar_painel_patrimonial_xlsx(PLANILHA_OFICIAL)
+        ESTADO_PATRIMONIAL_JSON.write_text(
+            json.dumps(dados, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        return dados
+    return {"eliminaveis": [], "sum": [], "temas_principais": []}
 
 
 def salvar_estado_patrimonial(dados: dict) -> None:
@@ -102,21 +114,53 @@ def recalcular_aba_sum(registros_eliminaveis: list[dict]) -> list[dict]:
 
 def main() -> None:
     st.set_page_config(
-        page_title="Painel de Controle Intercompany — Databricks",
+        page_title="Painel Intercompany — Vivo / Telefônica",
         layout="wide",
+        initial_sidebar_state="collapsed",
     )
 
-    st.title("Painel de Controle Intercompany — Ambiente Databricks (Fase 2)")
-    st.caption(
-        "Visão on-line única e simultânea | Camada Silver & Gold (Delta Lake) | "
-        "Itens 7 (Eliminação Patrimonial) e 8 (Eliminação de Resultado + Validador)"
+    st.markdown(
+        """
+        <style>
+        .vivo-header {
+            background: linear-gradient(90deg, #380054 0%, #660099 60%, #0B1F4D 100%);
+            padding: 18px 26px;
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 18px;
+        }
+        .vivo-header h1 {
+            color: white !important;
+            font-size: 1.65rem !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+        .vivo-header p {
+            color: #E2D4F0 !important;
+            font-size: 0.92rem !important;
+            margin: 4px 0 0 0 !important;
+        }
+        div[data-testid="stMetric"] {
+            background-color: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-left: 5px solid #660099;
+            padding: 12px 16px;
+            border-radius: 8px;
+        }
+        </style>
+        <div class="vivo-header">
+            <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
+            <p>Visão On-line Única • Camada Silver & Gold (Catálogo: <b>workspace.silver</b> / <b>workspace.gold</b>) • Eliminação Patrimonial e Resultado</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
 
     aba_patrimonial, aba_resultado, aba_arquitetura = st.tabs(
         [
             "📊 Item 7: Painel Eliminação Patrimonial",
             "📈 Item 8: Painel Eliminação Resultado & Validador Silver",
-            "⚙️ Pipeline PySpark / Delta Lake (SQL & MERGE)",
+            "⚙️ Tabelas Unity Catalog (workspace.silver / workspace.gold)",
         ]
     )
 
@@ -127,23 +171,22 @@ def main() -> None:
         dados_pat = obter_estado_patrimonial()
         registros_pat = dados_pat["eliminaveis"]
 
-        # Filtros inteligentes e Ordenação (Regras da Seção 3 — Passo 6)
         col_f1, col_f2, col_f3, col_f4, col_f5 = st.columns(5)
         responsaveis_unicos = sorted({r["responsavel"] for r in registros_pat if r["responsavel"]})
         with col_f1:
-            filtro_resp = st.multiselect("Filtrar por Responsável", responsaveis_unicos)
+            filtro_resp = st.multiselect("Responsável", responsaveis_unicos)
         with col_f2:
             filtro_status_ana = st.multiselect("Status (Analista)", STATUS_ANALISTA_OPCOES)
         with col_f3:
             filtro_status_rev = st.multiselect("Status (Revisor)", STATUS_REVISOR_OPCOES)
         with col_f4:
             filtro_mov = st.selectbox(
-                "Movimentação",
-                ["Todos", "Com movimentação (!= 0)", "Sem movimentação (= 0)", "Exeto Incorporadas"],
+                "Filtro de Movimentação",
+                ["Todos", "Com movimentação (!= 0)", "Sem movimentação (= 0)", "Ocultar Incorporadas"],
             )
         with col_f5:
             ordenar_por = st.selectbox(
-                "Ordenar por",
+                "Ordenação Inteligente",
                 [
                     "Ordem Padrão (Planilha)",
                     "Empresa / Cruzamento (A-Z)",
@@ -155,11 +198,10 @@ def main() -> None:
             )
 
         busca_texto = st.text_input(
-            "Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
-            placeholder="Ex.: TBRA x ITIS, Azure, provisão...",
+            "🔍 Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
+            placeholder="Digite p/ filtrar instantaneamente (ex.: TBRA x ITIS, Azure, provisão, Beatriz...)",
         )
 
-        # Aplicação dos filtros
         filtrados_pat = []
         for r in registros_pat:
             if filtro_resp and r["responsavel"] not in filtro_resp:
@@ -178,7 +220,7 @@ def main() -> None:
                 continue
             if filtro_mov == "Sem movimentação (= 0)" and mov_total != 0:
                 continue
-            if filtro_mov == "Exeto Incorporadas" and r["responsavel"] == "Incorporada":
+            if filtro_mov == "Ocultar Incorporadas" and r["responsavel"] == "Incorporada":
                 continue
             if busca_texto:
                 termo = busca_texto.casefold()
@@ -205,47 +247,49 @@ def main() -> None:
         elif ordenar_por == "Status (Analista)":
             filtrados_pat.sort(key=lambda x: (x["status_analista"], x["cruzamento"]))
 
-        # KPIs Superiores (Linha 36 da Planilha Oficial)
         soma_d = sum(r["ativo_1"] for r in filtrados_pat)
         soma_e = sum(r["passivo_2"] for r in filtrados_pat)
-        soma_f = sum(r["ativo_3"] for r in filtrados_pat)
-        soma_g = sum(r["passivo_4"] for r in filtrados_pat)
         soma_j = sum(r["dif_liquida_atual"] for r in filtrados_pat)
         soma_k = sum(r["dif_liquida_anterior"] for r in filtrados_pat)
 
         k1, k2, k3, k4, k5 = st.columns(5)
-        k1.metric("Cruzamentos Listados", f"{len(filtrados_pat)} / {len(registros_pat)}")
-        k2.metric("Soma Ativo (1) Origem", f"R$ {soma_d:,.2f}")
-        k3.metric("Soma Passivo (2) Origem", f"R$ {soma_e:,.2f}")
-        k4.metric("Diferença Líquida (Ago/26)", f"R$ {soma_j:,.2f}")
-        k5.metric("Diferença Líquida (Jul/26)", f"R$ {soma_k:,.2f}")
+        k1.metric("Cruzamentos Ativos", f"{len(filtrados_pat)} de {len(registros_pat)}")
+        k2.metric("Empresa Origem — Ativo (1)", formatar_brl(soma_d))
+        k3.metric("Empresa Origem — Passivo (2)", formatar_brl(soma_e))
+        k4.metric("Dif. Líquida Atual (Ago/26)", formatar_brl(soma_j))
+        k5.metric("Dif. Líquida Anterior (Jul/26)", formatar_brl(soma_k))
 
         sub_elim, sub_sum, sub_temas = st.tabs(
-            ["📋 Aba Elimináveis (Principal)", "📊 Aba Sum (Resumo por Analista)", "📌 Aba Temas Principais"]
+            [
+                "📋 Aba Elimináveis (Tabela Principal Editável)",
+                "📊 Aba Sum (Resumo Consolidado por Analista)",
+                "📌 Aba Temas Principais (Desconciliado)",
+            ]
         )
 
         with sub_elim:
             editados_pat = st.data_editor(
                 filtrados_pat,
                 use_container_width=True,
+                height=560,
                 num_rows="dynamic",
                 column_config={
                     "linha": None,
-                    "competencia": st.column_config.TextColumn("Comp.", width="small"),
+                    "competencia": st.column_config.TextColumn("Período", width="small"),
                     "responsavel": st.column_config.TextColumn("Responsável", width="small"),
                     "cruzamento": st.column_config.TextColumn("Cruzamento", width="medium"),
-                    "ativo_1": st.column_config.NumberColumn("Ativo (1) Origem", format="%.2f"),
-                    "passivo_2": st.column_config.NumberColumn("Passivo (2) Origem", format="%.2f"),
-                    "ativo_3": st.column_config.NumberColumn("Ativo (3) Contrap.", format="%.2f"),
-                    "passivo_4": st.column_config.NumberColumn("Passivo (4) Contrap.", format="%.2f"),
-                    "dif_bruta_1_4": st.column_config.NumberColumn("(1) - (4)", format="%.2f", disabled=True),
-                    "dif_bruta_2_3": st.column_config.NumberColumn("(2) - (3)", format="%.2f", disabled=True),
-                    "dif_liquida_atual": st.column_config.NumberColumn("Dif. Líq. Ago-26 (J)", format="%.2f", disabled=True),
-                    "dif_liquida_anterior": st.column_config.NumberColumn("Dif. Líq. Jul-26 (K)", format="%.2f"),
-                    "var_horiz_pct": st.column_config.NumberColumn("Var. Horiz. (%)", format="%.2f", disabled=True),
-                    "comp_final_rede": st.column_config.SelectboxColumn("Comp. Final Rede?", options=["", "Sim", "Não"]),
-                    "versao_resultado": st.column_config.TextColumn("Versão Res."),
-                    "versao_patrimonio": st.column_config.TextColumn("Versão Pat."),
+                    "ativo_1": st.column_config.NumberColumn("Ativo (1) Origem", format="R$ %.2f"),
+                    "passivo_2": st.column_config.NumberColumn("Passivo (2) Origem", format="R$ %.2f"),
+                    "ativo_3": st.column_config.NumberColumn("Ativo (3) Contrap.", format="R$ %.2f"),
+                    "passivo_4": st.column_config.NumberColumn("Passivo (4) Contrap.", format="R$ %.2f"),
+                    "dif_bruta_1_4": st.column_config.NumberColumn("(1) - (4) [H]", format="R$ %.2f", disabled=True),
+                    "dif_bruta_2_3": st.column_config.NumberColumn("(2) - (3) [I]", format="R$ %.2f", disabled=True),
+                    "dif_liquida_atual": st.column_config.NumberColumn("Dif. Líq. Ago-26 [J]", format="R$ %.2f", disabled=True),
+                    "dif_liquida_anterior": st.column_config.NumberColumn("Dif. Líq. Jul-26 [K]", format="R$ %.2f"),
+                    "var_horiz_pct": st.column_config.NumberColumn("Var. Horiz. [L]", format="%.2f", disabled=True),
+                    "comp_final_rede": st.column_config.SelectboxColumn("Comp. Rede?", options=["", "Sim", "Não"]),
+                    "versao_resultado": st.column_config.TextColumn("Ver. Res."),
+                    "versao_patrimonio": st.column_config.TextColumn("Ver. Pat."),
                     "status_analista": st.column_config.SelectboxColumn("Status (Analista)", options=STATUS_ANALISTA_OPCOES),
                     "status_revisor": st.column_config.SelectboxColumn("Status (Revisor)", options=STATUS_REVISOR_OPCOES),
                     "comentarios_revisor": st.column_config.TextColumn("Comentários (Revisor)", width="large"),
@@ -254,7 +298,7 @@ def main() -> None:
                 key="editor_patrimonial",
             )
 
-            if st.button("💾 Recalcular Fórmulas e Salvar Alterações (Delta Lake / Estado)", key="btn_save_pat"):
+            if st.button("💾 Recalcular Fórmulas e Salvar Alterações (Patrimonial)", type="primary", key="btn_save_pat"):
                 mapa_editados = {r["cruzamento"]: r for r in editados_pat if r.get("cruzamento")}
                 nova_lista = []
                 for orig in registros_pat:
@@ -268,7 +312,6 @@ def main() -> None:
                     )
                     item.update(calc)
                     nova_lista.append(item)
-                # Incluir novos cruzamentos adicionados dinamicamente
                 atuais_nomes = {r["cruzamento"] for r in nova_lista}
                 for c_nome, item in mapa_editados.items():
                     if c_nome not in atuais_nomes:
@@ -301,7 +344,7 @@ def main() -> None:
     with aba_resultado:
         registros_res = obter_estado_resultado()
         st.subheader("Painel de Controle — Eliminação de Resultado (Camada Silver & Gold)")
-        st.info(
+        st.caption(
             "Fonte automática: **Interno_Relatório de Eliminação Resultado** (Quadro 'Receita' → "
             "Linhas 'Ineficiência' e 'Divergência') + **Validador Automático na Camada Silver**."
         )
@@ -309,20 +352,21 @@ def main() -> None:
         editados_res = st.data_editor(
             registros_res,
             use_container_width=True,
+            height=460,
             num_rows="dynamic",
             column_config={
                 "linha": None,
-                "competencia": st.column_config.TextColumn("Comp.", width="small"),
+                "competencia": st.column_config.TextColumn("Período", width="small"),
                 "responsavel": st.column_config.TextColumn("Responsável", width="small"),
                 "cruzamento": st.column_config.TextColumn("Cruzamento", width="medium"),
-                "jul_inef_trib": st.column_config.NumberColumn("Julho: Inef. Trib", format="%.2f"),
-                "jul_diferenca": st.column_config.NumberColumn("Julho: Diferença", format="%.2f"),
-                "jul_inef_liq": st.column_config.NumberColumn("Julho: Inef. Líq.", format="%.2f", disabled=True),
-                "ago_inef_trib": st.column_config.NumberColumn("Agosto: Inef. Trib", format="%.2f"),
-                "ago_diferenca": st.column_config.NumberColumn("Agosto: Diferença", format="%.2f"),
-                "ago_inef_liq": st.column_config.NumberColumn("Agosto: Inef. Líq.", format="%.2f", disabled=True),
-                "dif_real_acumulada_ar": st.column_config.NumberColumn("Dif. Real Acum. (Col AR)", format="%.2f", disabled=True),
-                "sugestao_diferenca_as": st.column_config.TextColumn("Sugestão Diferença (Col AS)", width="medium", disabled=True),
+                "jul_inef_trib": st.column_config.NumberColumn("Julho: Inef. Trib", format="R$ %.2f"),
+                "jul_diferenca": st.column_config.NumberColumn("Julho: Diferença", format="R$ %.2f"),
+                "jul_inef_liq": st.column_config.NumberColumn("Julho: Inef. Líq.", format="R$ %.2f", disabled=True),
+                "ago_inef_trib": st.column_config.NumberColumn("Agosto: Inef. Trib", format="R$ %.2f"),
+                "ago_diferenca": st.column_config.NumberColumn("Agosto: Diferença", format="R$ %.2f"),
+                "ago_inef_liq": st.column_config.NumberColumn("Agosto: Inef. Líq.", format="R$ %.2f", disabled=True),
+                "dif_real_acumulada_ar": st.column_config.NumberColumn("Dif. Real Acum. [Col AR]", format="R$ %.2f", disabled=True),
+                "sugestao_diferenca_as": st.column_config.TextColumn("Sugestão Diferença [Col AS]", width="medium", disabled=True),
                 "status_analista": st.column_config.SelectboxColumn("Status (Analista)", options=STATUS_ANALISTA_OPCOES),
                 "status_revisor": st.column_config.SelectboxColumn("Status (Revisor)", options=STATUS_REVISOR_OPCOES),
                 "comentarios_analista": st.column_config.TextColumn("Comentários Analista", width="large"),
@@ -332,7 +376,7 @@ def main() -> None:
             key="editor_resultado",
         )
 
-        if st.button("💾 Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", key="btn_save_res"):
+        if st.button("💾 Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", type="primary", key="btn_save_res"):
             for r in editados_res:
                 r["jul_inef_liq"] = round(
                     float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2
@@ -349,7 +393,7 @@ def main() -> None:
             st.success("Painel de Resultado e indicadores AR/AS atualizados!")
 
         st.divider()
-        st.subheader(" Simulador do Validador Automático na Camada Silver (Substitui Planilha Validadora Manual)")
+        st.subheader("🛡️ Validador Automático na Camada Silver (Substitui Planilha Resultado_v10 Manual)")
         c1, c2, c3 = st.columns(3)
         with c1:
             rec_ant = st.number_input("Rec Liq Total (Mês Anterior)", value=35901920.79)
@@ -372,12 +416,19 @@ def main() -> None:
     # ABA 3: ARQUITETURA PYSPARK / DELTA LAKE (DDL & MERGE)
     # ==========================================================================
     with aba_arquitetura:
-        st.subheader("Scripts SQL & Delta Lake (Unity Catalog — Databricks)")
-        st.code(DDL_DATABRICKS_SQL, language="sql")
-        st.subheader("Instrução MERGE INTO Transacional (Atualização por Empresa / Crossing)")
-        st.code(gerar_query_merge_patrimonial(), language="sql")
+        st.subheader(f"Tabelas Ativas no Catálogo `{CATALOGO}`")
+        st.markdown(
+            f"""
+            - `{CATALOGO}.silver.painel_eliminacao_patrimonial`
+            - `{CATALOGO}.silver.temas_principais_patrimonial`
+            - `{CATALOGO}.silver.painel_eliminacao_resultado`
+            - `{CATALOGO}.gold.vw_sum_eliminacao_patrimonial`
+            """
+        )
+        st.code(DDL_DATABRICKS_SQL.replace("intercompany.", f"{CATALOGO}."), language="sql")
+        st.subheader("Instrução MERGE INTO Transacional")
+        st.code(gerar_query_merge_patrimonial().replace("intercompany.", f"{CATALOGO}."), language="sql")
 
 
 if __name__ == "__main__":
     main()
-
