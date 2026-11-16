@@ -261,9 +261,9 @@ def main() -> None:
 
         sub_elim, sub_sum, sub_temas = st.tabs(
             [
-                "📋 Aba Elimináveis (Tabela Principal Editável)",
-                "📊 Aba Sum (Resumo Consolidado por Analista)",
-                "📌 Aba Temas Principais (Desconciliado)",
+                "Aba Elimináveis (Tabela Principal Editável)",
+                "Aba Sum (Resumo Consolidado por Analista)",
+                "Aba Temas Principais (Desconciliado)",
             ]
         )
 
@@ -298,7 +298,7 @@ def main() -> None:
                 key="editor_patrimonial",
             )
 
-            if st.button("💾 Recalcular Fórmulas e Salvar Alterações (Patrimonial)", type="primary", key="btn_save_pat"):
+            if st.button("Recalcular Fórmulas e Salvar Alterações (Patrimonial)", type="primary", key="btn_save_pat"):
                 mapa_editados = {r["cruzamento"]: r for r in editados_pat if r.get("cruzamento")}
                 nova_lista = []
                 for orig in registros_pat:
@@ -376,7 +376,7 @@ def main() -> None:
             key="editor_resultado",
         )
 
-        if st.button("💾 Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", type="primary", key="btn_save_res"):
+        if st.button("Recalcular Ineficiência Líquida, Coluna AR/AS e Salvar (Resultado)", type="primary", key="btn_save_res"):
             for r in editados_res:
                 r["jul_inef_liq"] = round(
                     float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2
@@ -393,7 +393,7 @@ def main() -> None:
             st.success("Painel de Resultado e indicadores AR/AS atualizados!")
 
         st.divider()
-        st.subheader("🛡️ Validador Automático na Camada Silver (Substitui Planilha Resultado_v10 Manual)")
+        st.subheader("Validador Automático na Camada Silver (Substitui Planilha Resultado_v10 Manual)")
         c1, c2, c3 = st.columns(3)
         with c1:
             rec_ant = st.number_input("Rec Liq Total (Mês Anterior)", value=35901920.79)
