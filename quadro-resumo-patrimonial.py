@@ -17,7 +17,7 @@ ASSUNTO = re.compile(
 )
 ARQUIVO_QUADRO = re.compile(
 	r"^Quadro Resumo\s*-\s*(?P<empresa>.+?)\s*-\s*"
-	r"(?P<mes>0?[1-9]|1[0-2])_(?P<ano>\d{4})\.xlsx$",
+	r"(?P<mes>0?[1-9]|1[0-2])_(?P<ano>\d{4})(?:\s*[_ -]V\d+)?\.xlsx$",
 	re.IGNORECASE,
 )
 CODIGOS_EMPRESA = {
@@ -112,23 +112,35 @@ def _competencia_compativel(arquivo: dict[str, str], assunto: dict[str, str | No
 	return arquivo["mes"] == assunto["mes"] and arquivo["ano"] == assunto["ano"]
 
 
+def _resolver_destino_anexo(
+	nome_arquivo: str,
+	assunto: dict[str, str | None],
+	destinos_salvos: set[Path] | None = None,
+) -> Path | None:
+	"""Valida nome e competência do anexo e retorna o caminho final de salvamento."""
+	dados = analisar_nome_arquivo(nome_arquivo)
+	if not dados or not _competencia_compativel(dados, assunto):
+		return None
+
+	resultado = _obter_pasta_empresa(
+		{**dados, "nome": nome_arquivo}, assunto["versao"]
+	)
+	if resultado is None:
+		return None
+	pasta, nome = resultado
+	destino = pasta / nome
+	if destinos_salvos is not None and destino in destinos_salvos:
+		return None
+	return destino
+
+
 def _salvar_anexo_xlsx(
 	anexo,
 	assunto: dict[str, str | None],
 	destinos_salvos: set[Path] | None = None,
 ) -> list[str]:
-	dados = analisar_nome_arquivo(str(anexo.FileName))
-	if not dados or not _competencia_compativel(dados, assunto):
-		return []
-
-	resultado = _obter_pasta_empresa(
-		{**dados, "nome": str(anexo.FileName)}, assunto["versao"]
-	)
-	if resultado is None:
-		return []
-	pasta, nome = resultado
-	destino = pasta / nome
-	if destinos_salvos is not None and destino in destinos_salvos:
+	destino = _resolver_destino_anexo(str(anexo.FileName), assunto, destinos_salvos)
+	if destino is None:
 		return []
 	anexo.SaveAsFile(str(destino))
 	if destinos_salvos is not None:
@@ -146,18 +158,8 @@ def _salvar_xlsx_do_zip(
 		for membro in arquivo_zip.infolist():
 			if membro.is_dir():
 				continue
-			dados = analisar_nome_arquivo(membro.filename)
-			if not dados or not _competencia_compativel(dados, assunto):
-				continue
-
-			resultado = _obter_pasta_empresa(
-				{**dados, "nome": membro.filename}, assunto["versao"]
-			)
-			if resultado is None:
-				continue
-			pasta, nome = resultado
-			destino = pasta / nome
-			if destinos_salvos is not None and destino in destinos_salvos:
+			destino = _resolver_destino_anexo(membro.filename, assunto, destinos_salvos)
+			if destino is None:
 				continue
 			with arquivo_zip.open(membro) as origem, destino.open("wb") as arquivo_destino:
 				shutil.copyfileobj(origem, arquivo_destino)

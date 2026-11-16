@@ -1,0 +1,14 @@
+command:
+  - "streamlit"
+  - "run"
+  - "app_databricks.py"
+  - "--server.port"
+  - "8000"
+env:
+  - name: "DATABRICKS_CATALOG"
+    value: "intercompany"
+  - name: "DATABRICKS_SCHEMA_SILVER"
+    value: "silver"
+  - name: "DATABRICKS_SCHEMA_GOLD"
+    value: "gold"
+
