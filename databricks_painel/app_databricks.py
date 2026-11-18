@@ -1488,8 +1488,8 @@ def main():
                 </svg>
             </div>
             <div>
-                <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
-                <p>Visão On-line Única | Camada Silver & Gold (workspace.silver / workspace.gold) | Eliminação e Composições Gerais/Elimináveis</p>
+                <h1>Painel de Controle Intercompany — Fechamento Contábil</h1>
+                <p>Visão On-line Única | Camada Silver & Gold (workspace.silver / workspace.gold) | Eliminação Patrimonial, Eliminação de Resultado e Composições Gerais e Elimináveis</p>
             </div>
         </div>
         """,
@@ -1497,9 +1497,9 @@ def main():
     )
 
     aba_pat, aba_res, aba_item9 = st.tabs([
-        ":material/account_balance: Item 7: Eliminação Patrimonial",
-        ":material/analytics: Item 8: Eliminação Resultado & Validador",
-        ":material/fact_check: Item 9: Composições Gerais e Elimináveis — Patrimonial",
+        ":material/account_balance: Eliminação Patrimonial",
+        ":material/analytics: Eliminação de Resultado",
+        ":material/fact_check: Composições Gerais e Elimináveis",
     ])
 
     # ==========================================================================
@@ -1562,9 +1562,9 @@ def main():
         ])
 
         t_elim, t_sum, t_temas = st.tabs([
-            ":material/table_chart: Aba Elimináveis",
-            ":material/summarize: Aba Sum (Por Analista)",
-            ":material/bookmark_manager: Aba Temas Principais",
+            ":material/table_chart: Elimináveis",
+            ":material/summarize: Sum (Por Analista)",
+            ":material/bookmark_manager: Temas Principais",
         ])
         with t_elim:
             editados = st.data_editor(
@@ -1671,10 +1671,10 @@ def main():
             ("Classificadas: Sucesso", f"{tot_sucesso}"),
             ("Classificadas: Requer Análise", f"{tot_analise}"),
             ("Impacto Divergências (R$)", formatar_brl(tot_impacto)),
-            ("Status Final (Passo 8)", status_liberacao),
+            ("Status de Liberação", status_liberacao),
         ])
 
-        st.subheader("Quadro Sintético — Indicadores de Processamento (Camada Silver)")
+        st.subheader("Quadro Sintético — Indicadores de Processamento")
         st.caption(
             "Relatório: **Ago-26_13_1_Validacao_Eliminacoes x CompFinais_Patrimonial.xlsx** | "
             "Arquivo mestre obrigatório em 2_Comp_Finais: **1-Composicao De Saldo_Patrimonial_2026_BASE Nova**"
@@ -1684,7 +1684,7 @@ def main():
             use_container_width=True,
             column_config={
                 "aba_relatorio": st.column_config.TextColumn("Aba do Relatório", width="medium"),
-                "regra_aplicada": st.column_config.TextColumn("Regra Camada Silver", width="medium"),
+                "regra_aplicada": st.column_config.TextColumn("Regra de Validação", width="medium"),
                 "total_registros": st.column_config.NumberColumn("Total Partidas"),
                 "qtd_sucesso": st.column_config.NumberColumn("Sucesso"),
                 "qtd_atencao": st.column_config.NumberColumn("Atenção"),
@@ -1696,10 +1696,10 @@ def main():
 
         st.divider()
         t_aba1, t_aba2, t_aba3, t_aba4 = st.tabs([
-            ":material/compare_arrows: 1. Eliminação x CompFinal",
-            ":material/filter_alt_off: 2. Expurgadas_CompFinal",
-            ":material/assignment_late: 3. Somente_CompFinal",
-            ":material/rule: 4. Somente_Eliminacao",
+            ":material/compare_arrows: Eliminação x CompFinal",
+            ":material/filter_alt_off: Expurgadas_CompFinal",
+            ":material/assignment_late: Somente_CompFinal",
+            ":material/rule: Somente_Eliminacao",
         ])
 
         with t_aba1:
@@ -1785,7 +1785,7 @@ def main():
                 key="ed_i9_a4",
             )
 
-        if st.button(":material/save: Recalcular Regras da Camada Silver e Atualizar Quadro Sintético (Item 9)", type="primary", key="btn_save_i9"):
+        if st.button(":material/save: Recalcular Validações e Atualizar Quadro Sintético", type="primary", key="btn_save_i9"):
             for r in ed_a1:
                 r.update(classificar_item9_eliminacao_x_compfinal(r.get("valor_comp_elim"), r.get("valor_comp_final")))
             for r in ed_a2:
