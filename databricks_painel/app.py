@@ -1454,20 +1454,24 @@ def main():
             padding: 12px 14px;
             border-radius: 4px;
             margin-bottom: 14px;
+            min-height: 74px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         .kpi-label {
             color: #6E6E6E;
-            font-size: 0.82rem;
+            font-size: 0.80rem;
             font-weight: 600;
             margin-bottom: 6px;
+            white-space: nowrap;
         }
         .kpi-value {
             color: #2B0A4E;
-            font-size: 1.15rem;
+            font-size: clamp(0.95rem, 1.1vw, 1.12rem);
             font-weight: 700;
             line-height: 1.25;
-            white-space: normal;
-            word-break: break-word;
+            white-space: nowrap;
         }
         button[kind="primary"] {
             background-color: #5A189A !important;
@@ -1664,7 +1668,7 @@ def main():
         tot_sucesso = sum(q["qtd_sucesso"] for q in quadro_sintetico)
         tot_analise = sum(q["qtd_requer_analise"] for q in quadro_sintetico)
         tot_impacto = sum(q["impacto_divergencia_rs"] for q in quadro_sintetico)
-        status_liberacao = "Apto p/ Salvar na Rede" if tot_analise == 0 else f"Bloqueado ({tot_analise} pendentes)"
+        status_liberacao = "Liberado" if tot_analise == 0 else f"Bloqueado ({tot_analise})"
 
         renderizar_kpi_cards([
             ("Total Partidas Analisadas", f"{tot_partidas}"),
