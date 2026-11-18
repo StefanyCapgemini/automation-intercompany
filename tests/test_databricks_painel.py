@@ -8,12 +8,18 @@ if str(PAINEL_DIR) not in sys.path:
     sys.path.insert(0, str(PAINEL_DIR))
 
 from excel_loader import (
+    carregar_dados_iniciais_item9_patrimonial,
     carregar_dados_iniciais_resultado,
     carregar_painel_patrimonial_xlsx,
 )
 from pipeline_silver_gold import (
     calcular_metricas_patrimonial,
     calcular_metricas_resultado,
+    classificar_item9_eliminacao_x_compfinal,
+    classificar_item9_expurgadas_compfinal,
+    classificar_item9_somente_compfinal,
+    classificar_item9_somente_eliminacao,
+    gerar_quadro_sintetico_item9,
     validar_totais_resultado_silver,
 )
 
@@ -53,6 +59,35 @@ class DatabricksPainelTests(unittest.TestCase):
         )
         self.assertEqual(res["status_validador"], "Validado")
         self.assertEqual(res["check_rec_liq"], "OK Rec Liq")
+
+    def test_item9_regras_camada_silver_e_quadro_sintetico(self):
+        # 1. Aba Eliminação x CompFinal
+        ok_res = classificar_item9_eliminacao_x_compfinal(1165497.36, 1165497.36)
+        self.assertEqual(ok_res["diferenca"], 0.0)
+        self.assertEqual(ok_res["resultado_analise"], "Sucesso")
+
+        div_res = classificar_item9_eliminacao_x_compfinal(5326521.70, 5333462.99)
+        self.assertAlmostEqual(div_res["diferenca"], -6941.29, places=2)
+        self.assertEqual(div_res["resultado_analise"], "Requer Análise")
+
+        # 2. Aba Expurgadas_CompFinal
+        self.assertEqual(classificar_item9_expurgadas_compfinal("Não Eliminável"), "Sucesso")
+        self.assertEqual(classificar_item9_expurgadas_compfinal("Eliminável"), "Requer Análise")
+
+        # 3. Aba Somente_CompFinal e Somente_Eliminacao
+        self.assertEqual(classificar_item9_somente_compfinal(0.0), "Sucesso")
+        self.assertEqual(classificar_item9_somente_compfinal(180637.43), "Requer Análise")
+        self.assertEqual(classificar_item9_somente_eliminacao(0.0), "Sucesso")
+        self.assertEqual(classificar_item9_somente_eliminacao(-17261.71), "Requer Análise")
+
+        # 4. Quadro Sintético das 4 abas
+        dados_i9 = carregar_dados_iniciais_item9_patrimonial()
+        quadro = gerar_quadro_sintetico_item9(dados_i9)
+        self.assertEqual(len(quadro), 4)
+        self.assertEqual(quadro[0]["aba_relatorio"], "Eliminação x CompFinal")
+        self.assertEqual(quadro[0]["total_registros"], 18)
+        self.assertEqual(quadro[0]["qtd_sucesso"], 17)
+        self.assertEqual(quadro[0]["qtd_requer_analise"], 1)
 
 
 if __name__ == "__main__":

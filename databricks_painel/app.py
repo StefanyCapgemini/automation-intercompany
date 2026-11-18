@@ -1,6 +1,9 @@
 """
 Databricks App Autocontido (Arquivo Único: app.py)
-Painel de Controle Intercompany — Fase 2 (Eliminação Patrimonial e Resultado)
+Painel de Controle Intercompany — Fase 2:
+  - Item 7: Eliminação Patrimonial (Abas Elimináveis, Sum e Temas Principais)
+  - Item 8: Eliminação de Resultado & Validador Silver
+  - Item 9: Composições Gerais e Elimináveis — Patrimonial (Quadro Sintético e 4 Abas Silver)
 Paleta oficial extraída do Documento Funcional (#5A189A, #2B0A4E, #C7A6E8, #6E6E6E, #FFFFFF).
 """
 
@@ -983,6 +986,271 @@ DADOS_INICIAIS_RESULTADO = [{'linha': 1,
                          'tenha algum impacto',
   'validador_silver': 'Validado (OK Rec Liq | OK Inef Tribut | OK Despesa)'}]
 
+DADOS_INICIAIS_ITEM9 = {'eliminacao_x_compfinal': [{'linha': 1,
+                             'cruzamento': 'I2GO x TBRA',
+                             'empresa_origem': 'I2GO',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11218928',
+                             'valor_comp_elim': 1165497.36,
+                             'valor_comp_final': 1165497.36,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': 'Partida conciliada sem diferença'},
+                            {'linha': 2,
+                             'cruzamento': 'I2GO x TBRA',
+                             'empresa_origem': 'I2GO',
+                             'empresa_conc': 'TBRA',
+                             'conta': '21191932',
+                             'valor_comp_elim': -15228234.24,
+                             'valor_comp_final': -15228234.24,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': 'Adiantamento 15MM conciliado em ambos os '
+                                                     'lados'},
+                            {'linha': 3,
+                             'cruzamento': 'INN1 x TBRA',
+                             'empresa_origem': 'INN1',
+                             'empresa_conc': 'TBRA',
+                             'conta': '21121111',
+                             'valor_comp_elim': -7966.83,
+                             'valor_comp_final': -7966.83,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 4,
+                             'cruzamento': 'INN1 x TBRA',
+                             'empresa_origem': 'INN1',
+                             'empresa_conc': 'TBRA',
+                             'conta': '21121112',
+                             'valor_comp_elim': -1007634.92,
+                             'valor_comp_final': -1007634.92,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 5,
+                             'cruzamento': 'INN1 x TBRA',
+                             'empresa_origem': 'INN1',
+                             'empresa_conc': 'TBRA',
+                             'conta': '21121193',
+                             'valor_comp_elim': -112023.92,
+                             'valor_comp_final': -112023.92,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 6,
+                             'cruzamento': 'INN1 x TBRA',
+                             'empresa_origem': 'INN1',
+                             'empresa_conc': 'TBRA',
+                             'conta': '21191915',
+                             'valor_comp_elim': -105086.19,
+                             'valor_comp_final': -105086.19,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 7,
+                             'cruzamento': 'INN1 x TBRA',
+                             'empresa_origem': 'INN1',
+                             'empresa_conc': 'TBRA',
+                             'conta': '21192001',
+                             'valor_comp_elim': 0.0,
+                             'valor_comp_final': 0.0,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 8,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11211115',
+                             'valor_comp_elim': 10865902.81,
+                             'valor_comp_final': 10865902.81,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 9,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11211121',
+                             'valor_comp_elim': 3528817.67,
+                             'valor_comp_final': 3528817.67,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 10,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11211127',
+                             'valor_comp_elim': 67084907.48,
+                             'valor_comp_final': 67084907.48,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 11,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11211141',
+                             'valor_comp_elim': 35444207.57,
+                             'valor_comp_final': 35444207.57,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 12,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11211142',
+                             'valor_comp_elim': -0.03,
+                             'valor_comp_final': -0.03,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 13,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11211922',
+                             'valor_comp_elim': 80718.54,
+                             'valor_comp_final': 80718.54,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 14,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11251111',
+                             'valor_comp_elim': -32112.67,
+                             'valor_comp_final': -32112.67,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 15,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11252311',
+                             'valor_comp_elim': -30517854.06,
+                             'valor_comp_final': -30517854.06,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 16,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11252511',
+                             'valor_comp_elim': 30146.61,
+                             'valor_comp_final': 30146.61,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 17,
+                             'cruzamento': 'ITIS x TBRA',
+                             'empresa_origem': 'ITIS',
+                             'empresa_conc': 'TBRA',
+                             'conta': '11291114',
+                             'valor_comp_elim': -1631755.78,
+                             'valor_comp_final': -1631755.78,
+                             'diferenca': 0.0,
+                             'resultado_analise': 'Sucesso',
+                             'comentarios_analista': ''},
+                            {'linha': 18,
+                             'cruzamento': 'TBRA x TERRA',
+                             'empresa_origem': 'TBRA',
+                             'empresa_conc': 'TERRA',
+                             'conta': '11211115',
+                             'valor_comp_elim': 5326521.7,
+                             'valor_comp_final': 5333462.99,
+                             'diferenca': -6941.29,
+                             'resultado_analise': 'Requer Análise',
+                             'comentarios_analista': 'Divergência de rateio tributário em análise '
+                                                     'com a contraparte'}],
+ 'expurgadas_compfinal': [{'linha': 1,
+                           'cruzamento': '0942 x TBRA',
+                           'empresa_origem': '0942 - Fundação Telefônica',
+                           'classificacao_base_mestre': 'Não Eliminável',
+                           'conta': '11211115',
+                           'valor_comp_final': 145230.1,
+                           'resultado_analise': 'Sucesso',
+                           'comentarios_analista': 'Empresa Não Eliminável parametrizada na Base '
+                                                   'Mestre'},
+                          {'linha': 2,
+                           'cruzamento': '1969 x TBRA',
+                           'empresa_origem': '1969 - Visão Prev',
+                           'classificacao_base_mestre': 'Não Eliminável',
+                           'conta': '21121112',
+                           'valor_comp_final': -89410.55,
+                           'resultado_analise': 'Sucesso',
+                           'comentarios_analista': 'Empresa Não Eliminável parametrizada na Base '
+                                                   'Mestre'},
+                          {'linha': 3,
+                           'cruzamento': '2193 x TBRA',
+                           'empresa_origem': '2193 - Vivo Ventures',
+                           'classificacao_base_mestre': 'Não Eliminável',
+                           'conta': '11211922',
+                           'valor_comp_final': 0.0,
+                           'resultado_analise': 'Sucesso',
+                           'comentarios_analista': 'Sem movimentação no período'},
+                          {'linha': 4,
+                           'cruzamento': '0306 x TBRA',
+                           'empresa_origem': '0306 - ITIS',
+                           'classificacao_base_mestre': 'Eliminável',
+                           'conta': '11251119',
+                           'valor_comp_final': 17261.71,
+                           'resultado_analise': 'Requer Análise',
+                           'comentarios_analista': 'Verificar partida expurgada de empresa '
+                                                   'Eliminável'}],
+ 'somente_compfinal': [{'linha': 1,
+                        'cruzamento': 'TBRA x POP',
+                        'empresa_origem': 'TBRA',
+                        'empresa_conc': 'POP',
+                        'conta': '11211115',
+                        'valor_comp_final': 0.0,
+                        'resultado_analise': 'Sucesso',
+                        'comentarios_analista': 'Saldo zerado na composição final'},
+                       {'linha': 2,
+                        'cruzamento': 'TBRA x CLOUD',
+                        'empresa_origem': 'TBRA',
+                        'empresa_conc': 'CLOUD',
+                        'conta': '11211127',
+                        'valor_comp_final': 0.0,
+                        'resultado_analise': 'Sucesso',
+                        'comentarios_analista': 'Saldo zerado na composição final'},
+                       {'linha': 3,
+                        'cruzamento': 'CLOUD x VSCD',
+                        'empresa_origem': 'CLOUD',
+                        'empresa_conc': 'VSCD',
+                        'conta': '11211922',
+                        'valor_comp_final': 180637.43,
+                        'resultado_analise': 'Requer Análise',
+                        'comentarios_analista': 'Regularização A Faturar Azure pendente na '
+                                                'Eliminação'}],
+ 'somente_eliminacao': [{'linha': 1,
+                         'cruzamento': 'TBRA x VSS',
+                         'empresa_origem': 'TBRA',
+                         'valor_comp_elim': 0.0,
+                         'conta': '21121111',
+                         'resultado_analise': 'Sucesso',
+                         'comentarios_analista': 'Sem resíduo exclusivo na eliminação'},
+                        {'linha': 2,
+                         'cruzamento': 'TBRA x TGLOG',
+                         'empresa_origem': 'TBRA',
+                         'valor_comp_elim': 0.0,
+                         'conta': '21121112',
+                         'resultado_analise': 'Sucesso',
+                         'comentarios_analista': 'Sem resíduo exclusivo na eliminação'},
+                        {'linha': 3,
+                         'cruzamento': 'ITIS x TGLOG',
+                         'empresa_origem': 'ITIS',
+                         'valor_comp_elim': -17261.71,
+                         'conta': '21121193',
+                         'resultado_analise': 'Requer Análise',
+                         'comentarios_analista': 'Despesa operacional registrada na ITIS e não na '
+                                                 'TGLOG'}]}
+
 
 def calcular_metricas_patrimonial(ativo_1, passivo_2, ativo_3, passivo_4, dif_ant=0.0):
     dif_1_4 = round((ativo_1 or 0.0) + (passivo_4 or 0.0), 2)
@@ -1019,6 +1287,73 @@ def calcular_metricas_resultado(inef_trib, diferenca, dif_acum_ant=0.0):
     }
 
 
+def classificar_item9_eliminacao_x_compfinal(valor_comp_elim, valor_comp_final, tolerancia=0.005):
+    elim = round(float(valor_comp_elim or 0.0), 2)
+    comp = round(float(valor_comp_final or 0.0), 2)
+    diferenca = round(elim - comp, 2)
+    status = "Sucesso" if abs(diferenca) <= tolerancia else "Requer Análise"
+    return {
+        "valor_comp_elim": elim,
+        "valor_comp_final": comp,
+        "diferenca": diferenca,
+        "resultado_analise": status,
+    }
+
+
+def classificar_item9_expurgadas_compfinal(tipo_empresa_base_mestre):
+    tipo = str(tipo_empresa_base_mestre or "").strip().casefold()
+    if "não eliminável" in tipo or "nao eliminavel" in tipo:
+        return "Sucesso"
+    return "Requer Análise"
+
+
+def classificar_item9_somente_compfinal(valor_comp_final, tolerancia=0.005):
+    val = round(float(valor_comp_final or 0.0), 2)
+    return "Sucesso" if abs(val) <= tolerancia else "Requer Análise"
+
+
+def classificar_item9_somente_eliminacao(valor_comp_elim, tolerancia=0.005):
+    val = round(float(valor_comp_elim or 0.0), 2)
+    return "Sucesso" if abs(val) <= tolerancia else "Requer Análise"
+
+
+def gerar_quadro_sintetico_item9(dados_item9):
+    config_abas = [
+        ("Eliminação x CompFinal", "eliminacao_x_compfinal", "diferenca", "Diferença (Col G) = 0"),
+        ("Expurgadas_CompFinal", "expurgadas_compfinal", "valor_comp_final", "Empresa Origem = Não Eliminável"),
+        ("Somente_CompFinal", "somente_compfinal", "valor_comp_final", "Valor_CompFinal (Col E) = 0"),
+        ("Somente_Eliminacao", "somente_eliminacao", "valor_comp_elim", "Valor_CompElim (Col C) = 0"),
+    ]
+    resumo = []
+    for nome_aba, chave, col_valor, regra_desc in config_abas:
+        registros = dados_item9.get(chave, [])
+        total = len(registros)
+        sucesso = sum(1 for r in registros if r.get("resultado_analise") == "Sucesso")
+        requer_analise = sum(1 for r in registros if r.get("resultado_analise") == "Requer Análise")
+        atencao = total - sucesso - requer_analise
+        impacto_rs = round(
+            sum(abs(float(r.get(col_valor) or 0.0)) for r in registros if r.get("resultado_analise") != "Sucesso"),
+            2,
+        )
+        if requer_analise > 0:
+            status_geral = "Requer Análise"
+        elif atencao > 0:
+            status_geral = "Atenção"
+        else:
+            status_geral = "Sucesso"
+        resumo.append({
+            "aba_relatorio": nome_aba,
+            "regra_aplicada": regra_desc,
+            "total_registros": total,
+            "qtd_sucesso": sucesso,
+            "qtd_atencao": atencao,
+            "qtd_requer_analise": requer_analise,
+            "impacto_divergencia_rs": impacto_rs,
+            "classificacao_sintetica": status_geral,
+        })
+    return resumo
+
+
 def formatar_brl(valor):
     if valor is None:
         return "R$ 0,00"
@@ -1028,15 +1363,13 @@ def formatar_brl(valor):
 
 
 def renderizar_kpi_cards(cards: list[tuple[str, str]]) -> None:
-    cols_html = ""
-    for rotulo, valor in cards:
-        cols_html += f"""
-        <div class="kpi-card">
-            <div class="kpi-label">{rotulo}</div>
-            <div class="kpi-value">{valor}</div>
-        </div>
-        """
-    st.markdown(f'<div class="kpi-grid">{cols_html}</div>', unsafe_allow_html=True)
+    colunas = st.columns(len(cards))
+    for col, (rotulo, valor) in zip(colunas, cards):
+        with col:
+            st.markdown(
+                f'<div class="kpi-card"><div class="kpi-label">{rotulo}</div><div class="kpi-value">{valor}</div></div>',
+                unsafe_allow_html=True,
+            )
 
 
 def recalcular_aba_sum(registros):
@@ -1074,6 +1407,8 @@ def main():
         st.session_state.dados_pat = json.loads(json.dumps(DADOS_INICIAIS_PATRIMONIAL))
     if "dados_res" not in st.session_state:
         st.session_state.dados_res = json.loads(json.dumps(DADOS_INICIAIS_RESULTADO))
+    if "dados_item9" not in st.session_state:
+        st.session_state.dados_item9 = json.loads(json.dumps(DADOS_INICIAIS_ITEM9))
 
     st.markdown(
         """
@@ -1112,18 +1447,13 @@ def main():
             font-size: 0.9rem !important;
             margin: 4px 0 0 0 !important;
         }
-        .kpi-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
-            gap: 12px;
-            margin: 10px 0 18px 0;
-        }
         .kpi-card {
             background-color: #FFFFFF;
             border: 1px solid #C7A6E8;
             border-left: 5px solid #5A189A;
             padding: 12px 14px;
             border-radius: 4px;
+            margin-bottom: 14px;
         }
         .kpi-label {
             color: #6E6E6E;
@@ -1159,18 +1489,22 @@ def main():
             </div>
             <div>
                 <h1>Painel de Controle Intercompany — Fechamento Contábil (Fase 2)</h1>
-                <p>Visão On-line | Camada Silver & Gold | Eliminação Patrimonial e Resultado</p>
+                <p>Visão On-line Única | Camada Silver & Gold (workspace.silver / workspace.gold) | Eliminação e Composições Gerais/Elimináveis</p>
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    aba_pat, aba_res = st.tabs([
-        ":material/account_balance: Item 7: Painel Eliminação Patrimonial (Abas Elimináveis, Sum e Temas)",
-        ":material/analytics: Item 8: Painel Eliminação Resultado & Validador Silver",
+    aba_pat, aba_res, aba_item9 = st.tabs([
+        ":material/account_balance: Item 7: Eliminação Patrimonial",
+        ":material/analytics: Item 8: Eliminação Resultado & Validador",
+        ":material/fact_check: Item 9: Composições Gerais e Elimináveis — Patrimonial",
     ])
 
+    # ==========================================================================
+    # ABA 1: ITEM 7 — ELIMINAÇÃO PATRIMONIAL
+    # ==========================================================================
     with aba_pat:
         registros_pat = st.session_state.dados_pat["eliminaveis"]
         c1, c2, c3, c4, c5 = st.columns(5)
@@ -1272,6 +1606,9 @@ def main():
         with t_temas:
             st.dataframe(st.session_state.dados_pat["temas_principais"], use_container_width=True)
 
+    # ==========================================================================
+    # ABA 2: ITEM 8 — ELIMINAÇÃO RESULTADO
+    # ==========================================================================
     with aba_res:
         registros_res = st.session_state.dados_res
         renderizar_kpi_cards([
@@ -1315,6 +1652,156 @@ def main():
                 r["sugestao_diferenca_as"] = c["sugestao_diferenca_as"]
             st.session_state.dados_res = ed_res
             st.success("Painel de Resultado recalculado com sucesso.")
+
+    # ==========================================================================
+    # ABA 3: ITEM 9 — COMPOSIÇÕES GERAIS E ELIMINÁVEIS — PATRIMONIAL
+    # ==========================================================================
+    with aba_item9:
+        dados_i9 = st.session_state.dados_item9
+        quadro_sintetico = gerar_quadro_sintetico_item9(dados_i9)
+
+        tot_partidas = sum(q["total_registros"] for q in quadro_sintetico)
+        tot_sucesso = sum(q["qtd_sucesso"] for q in quadro_sintetico)
+        tot_analise = sum(q["qtd_requer_analise"] for q in quadro_sintetico)
+        tot_impacto = sum(q["impacto_divergencia_rs"] for q in quadro_sintetico)
+        status_liberacao = "Apto p/ Salvar na Rede" if tot_analise == 0 else f"Bloqueado ({tot_analise} pendentes)"
+
+        renderizar_kpi_cards([
+            ("Total Partidas Analisadas", f"{tot_partidas}"),
+            ("Classificadas: Sucesso", f"{tot_sucesso}"),
+            ("Classificadas: Requer Análise", f"{tot_analise}"),
+            ("Impacto Divergências (R$)", formatar_brl(tot_impacto)),
+            ("Status Final (Passo 8)", status_liberacao),
+        ])
+
+        st.subheader("Quadro Sintético — Indicadores de Processamento (Camada Silver)")
+        st.caption(
+            "Relatório: **Ago-26_13_1_Validacao_Eliminacoes x CompFinais_Patrimonial.xlsx** | "
+            "Arquivo mestre obrigatório em 2_Comp_Finais: **1-Composicao De Saldo_Patrimonial_2026_BASE Nova**"
+        )
+        st.dataframe(
+            quadro_sintetico,
+            use_container_width=True,
+            column_config={
+                "aba_relatorio": st.column_config.TextColumn("Aba do Relatório", width="medium"),
+                "regra_aplicada": st.column_config.TextColumn("Regra Camada Silver", width="medium"),
+                "total_registros": st.column_config.NumberColumn("Total Partidas"),
+                "qtd_sucesso": st.column_config.NumberColumn("Sucesso"),
+                "qtd_atencao": st.column_config.NumberColumn("Atenção"),
+                "qtd_requer_analise": st.column_config.NumberColumn("Requer Análise"),
+                "impacto_divergencia_rs": st.column_config.NumberColumn("Impacto Divergência (R$)", format="R$ %.2f"),
+                "classificacao_sintetica": st.column_config.TextColumn("Status da Aba", width="small"),
+            },
+        )
+
+        st.divider()
+        t_aba1, t_aba2, t_aba3, t_aba4 = st.tabs([
+            ":material/compare_arrows: 1. Eliminação x CompFinal",
+            ":material/filter_alt_off: 2. Expurgadas_CompFinal",
+            ":material/assignment_late: 3. Somente_CompFinal",
+            ":material/rule: 4. Somente_Eliminacao",
+        ])
+
+        with t_aba1:
+            st.caption("Regra Silver: **Diferença (Coluna G) = 0 → Sucesso** | **Diferença != 0 → Requer Análise**")
+            ed_a1 = st.data_editor(
+                dados_i9["eliminacao_x_compfinal"],
+                use_container_width=True,
+                height=420,
+                num_rows="dynamic",
+                column_config={
+                    "linha": None,
+                    "cruzamento": st.column_config.TextColumn("Cruzamento (Col A)"),
+                    "empresa_origem": st.column_config.TextColumn("Empresa Origem (Col B)"),
+                    "empresa_conc": st.column_config.TextColumn("Empresa Conc (Col C)"),
+                    "conta": st.column_config.TextColumn("Conta (Col D)"),
+                    "valor_comp_elim": st.column_config.NumberColumn("Valor_CompElim (Col E)", format="R$ %.2f"),
+                    "valor_comp_final": st.column_config.NumberColumn("Valor_CompFinal (Col F)", format="R$ %.2f"),
+                    "diferenca": st.column_config.NumberColumn("Diferença (Col G)", format="R$ %.2f", disabled=True),
+                    "resultado_analise": st.column_config.TextColumn("Classificação Silver", disabled=True),
+                    "comentarios_analista": st.column_config.TextColumn("Comentários Analista", width="large"),
+                },
+                key="ed_i9_a1",
+            )
+
+        with t_aba2:
+            st.caption("Regra Silver: **Empresa Origem (Coluna B) = Não Eliminável → Sucesso** | **Eliminável → Requer Análise**")
+            ed_a2 = st.data_editor(
+                dados_i9["expurgadas_compfinal"],
+                use_container_width=True,
+                height=320,
+                num_rows="dynamic",
+                column_config={
+                    "linha": None,
+                    "cruzamento": st.column_config.TextColumn("Cruzamento (Col A)"),
+                    "empresa_origem": st.column_config.TextColumn("Empresa Origem (Col B)"),
+                    "classificacao_base_mestre": st.column_config.SelectboxColumn(
+                        "Classificação Base Mestre", options=["Não Eliminável", "Eliminável"]
+                    ),
+                    "conta": st.column_config.TextColumn("Conta"),
+                    "valor_comp_final": st.column_config.NumberColumn("Valor_CompFinal", format="R$ %.2f"),
+                    "resultado_analise": st.column_config.TextColumn("Classificação Silver", disabled=True),
+                    "comentarios_analista": st.column_config.TextColumn("Comentários Analista", width="large"),
+                },
+                key="ed_i9_a2",
+            )
+
+        with t_aba3:
+            st.caption("Regra Silver: **Conta (Col D) e Valor_CompFinal (Col E) = 0 → Sucesso** | **!= 0 → Requer Análise**")
+            ed_a3 = st.data_editor(
+                dados_i9["somente_compfinal"],
+                use_container_width=True,
+                height=320,
+                num_rows="dynamic",
+                column_config={
+                    "linha": None,
+                    "cruzamento": st.column_config.TextColumn("Cruzamento (Col A)"),
+                    "empresa_origem": st.column_config.TextColumn("Empresa Origem (Col B)"),
+                    "empresa_conc": st.column_config.TextColumn("Empresa Conc (Col C)"),
+                    "conta": st.column_config.TextColumn("Conta (Col D)"),
+                    "valor_comp_final": st.column_config.NumberColumn("Valor_CompFinal (Col E)", format="R$ %.2f"),
+                    "resultado_analise": st.column_config.TextColumn("Classificação Silver", disabled=True),
+                    "comentarios_analista": st.column_config.TextColumn("Comentários Analista", width="large"),
+                },
+                key="ed_i9_a3",
+            )
+
+        with t_aba4:
+            st.caption("Regra Silver: **Valor_CompElim (Col C) = 0 → Sucesso** | **!= 0 → Requer Análise**")
+            ed_a4 = st.data_editor(
+                dados_i9["somente_eliminacao"],
+                use_container_width=True,
+                height=320,
+                num_rows="dynamic",
+                column_config={
+                    "linha": None,
+                    "cruzamento": st.column_config.TextColumn("Cruzamento (Col A)"),
+                    "empresa_origem": st.column_config.TextColumn("Empresa Origem (Col B)"),
+                    "valor_comp_elim": st.column_config.NumberColumn("Valor_CompElim (Col C)", format="R$ %.2f"),
+                    "conta": st.column_config.TextColumn("Conta (Col D)"),
+                    "resultado_analise": st.column_config.TextColumn("Classificação Silver", disabled=True),
+                    "comentarios_analista": st.column_config.TextColumn("Comentários Analista", width="large"),
+                },
+                key="ed_i9_a4",
+            )
+
+        if st.button(":material/save: Recalcular Regras da Camada Silver e Atualizar Quadro Sintético (Item 9)", type="primary", key="btn_save_i9"):
+            for r in ed_a1:
+                r.update(classificar_item9_eliminacao_x_compfinal(r.get("valor_comp_elim"), r.get("valor_comp_final")))
+            for r in ed_a2:
+                r["resultado_analise"] = classificar_item9_expurgadas_compfinal(r.get("classificacao_base_mestre"))
+            for r in ed_a3:
+                r["resultado_analise"] = classificar_item9_somente_compfinal(r.get("valor_comp_final"))
+            for r in ed_a4:
+                r["resultado_analise"] = classificar_item9_somente_eliminacao(r.get("valor_comp_elim"))
+
+            st.session_state.dados_item9 = {
+                "eliminacao_x_compfinal": ed_a1,
+                "expurgadas_compfinal": ed_a2,
+                "somente_compfinal": ed_a3,
+                "somente_eliminacao": ed_a4,
+            }
+            st.success("Validações da Camada Silver e Quadro Sintético atualizados com sucesso.")
 
 
 if __name__ == "__main__":

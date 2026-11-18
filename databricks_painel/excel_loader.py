@@ -15,6 +15,10 @@ from typing import Any
 from pipeline_silver_gold import (
     calcular_metricas_patrimonial,
     calcular_metricas_resultado,
+    classificar_item9_eliminacao_x_compfinal,
+    classificar_item9_expurgadas_compfinal,
+    classificar_item9_somente_compfinal,
+    classificar_item9_somente_eliminacao,
 )
 
 NS_MAIN = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -357,4 +361,119 @@ def carregar_dados_iniciais_resultado() -> list[dict[str, Any]]:
             }
         )
     return saida
+
+
+def carregar_dados_iniciais_item9_patrimonial() -> dict[str, list[dict[str, Any]]]:
+    """
+    Retorna a base inicial do Item 9 (Fase 2 — Composições Gerais e Elimináveis Patrimonial)
+    espelhando as 4 abas do relatório '13_1_Validacao_Eliminacoes x CompFinais_Patrimonial.xlsx':
+      1. eliminacao_x_compfinal (Aba: Eliminação x CompFinal)
+      2. expurgadas_compfinal (Aba: Expurgadas_CompFinal)
+      3. somente_compfinal (Aba: Somente_CompFinal)
+      4. somente_eliminacao (Aba: Somente_Eliminacao)
+    """
+    raw_elim_x_comp = [
+        ("I2GO x TBRA", "I2GO", "TBRA", "11218928", 1165497.36, 1165497.36, "Partida conciliada sem diferença"),
+        ("I2GO x TBRA", "I2GO", "TBRA", "21191932", -15228234.24, -15228234.24, "Adiantamento 15MM conciliado em ambos os lados"),
+        ("INN1 x TBRA", "INN1", "TBRA", "21121111", -7966.83, -7966.83, ""),
+        ("INN1 x TBRA", "INN1", "TBRA", "21121112", -1007634.92, -1007634.92, ""),
+        ("INN1 x TBRA", "INN1", "TBRA", "21121193", -112023.92, -112023.92, ""),
+        ("INN1 x TBRA", "INN1", "TBRA", "21191915", -105086.19, -105086.19, ""),
+        ("INN1 x TBRA", "INN1", "TBRA", "21192001", 0.00, 0.00, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11211115", 10865902.81, 10865902.81, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11211121", 3528817.67, 3528817.67, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11211127", 67084907.48, 67084907.48, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11211141", 35444207.57, 35444207.57, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11211142", -0.03, -0.03, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11211922", 80718.54, 80718.54, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11251111", -32112.67, -32112.67, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11252311", -30517854.06, -30517854.06, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11252511", 30146.61, 30146.61, ""),
+        ("ITIS x TBRA", "ITIS", "TBRA", "11291114", -1631755.78, -1631755.78, ""),
+        ("TBRA x TERRA", "TBRA", "TERRA", "11211115", 5326521.70, 5333462.99, "Divergência de rateio tributário em análise com a contraparte"),
+    ]
+    aba1 = []
+    for idx, (cruz, emp_o, emp_c, conta, v_elim, v_comp, coment) in enumerate(raw_elim_x_comp, start=1):
+        calc = classificar_item9_eliminacao_x_compfinal(v_elim, v_comp)
+        aba1.append(
+            {
+                "linha": idx,
+                "cruzamento": cruz,
+                "empresa_origem": emp_o,
+                "empresa_conc": emp_c,
+                "conta": conta,
+                "valor_comp_elim": calc["valor_comp_elim"],
+                "valor_comp_final": calc["valor_comp_final"],
+                "diferenca": calc["diferenca"],
+                "resultado_analise": calc["resultado_analise"],
+                "comentarios_analista": coment,
+            }
+        )
+
+    raw_expurgadas = [
+        ("0942 x TBRA", "0942 - Fundação Telefônica", "Não Eliminável", "11211115", 145230.10, "Empresa Não Eliminável parametrizada na Base Mestre"),
+        ("1969 x TBRA", "1969 - Visão Prev", "Não Eliminável", "21121112", -89410.55, "Empresa Não Eliminável parametrizada na Base Mestre"),
+        ("2193 x TBRA", "2193 - Vivo Ventures", "Não Eliminável", "11211922", 0.00, "Sem movimentação no período"),
+        ("0306 x TBRA", "0306 - ITIS", "Eliminável", "11251119", 17261.71, "Verificar partida expurgada de empresa Eliminável"),
+    ]
+    aba2 = []
+    for idx, (cruz, emp_o, tipo_bm, conta, v_comp, coment) in enumerate(raw_expurgadas, start=1):
+        aba2.append(
+            {
+                "linha": idx,
+                "cruzamento": cruz,
+                "empresa_origem": emp_o,
+                "classificacao_base_mestre": tipo_bm,
+                "conta": conta,
+                "valor_comp_final": round(v_comp, 2),
+                "resultado_analise": classificar_item9_expurgadas_compfinal(tipo_bm),
+                "comentarios_analista": coment,
+            }
+        )
+
+    raw_somente_comp = [
+        ("TBRA x POP", "TBRA", "POP", "11211115", 0.00, "Saldo zerado na composição final"),
+        ("TBRA x CLOUD", "TBRA", "CLOUD", "11211127", 0.00, "Saldo zerado na composição final"),
+        ("CLOUD x VSCD", "CLOUD", "VSCD", "11211922", 180637.43, "Regularização A Faturar Azure pendente na Eliminação"),
+    ]
+    aba3 = []
+    for idx, (cruz, emp_o, emp_c, conta, v_comp, coment) in enumerate(raw_somente_comp, start=1):
+        aba3.append(
+            {
+                "linha": idx,
+                "cruzamento": cruz,
+                "empresa_origem": emp_o,
+                "empresa_conc": emp_c,
+                "conta": conta,
+                "valor_comp_final": round(v_comp, 2),
+                "resultado_analise": classificar_item9_somente_compfinal(v_comp),
+                "comentarios_analista": coment,
+            }
+        )
+
+    raw_somente_elim = [
+        ("TBRA x VSS", "TBRA", 0.00, "21121111", "Sem resíduo exclusivo na eliminação"),
+        ("TBRA x TGLOG", "TBRA", 0.00, "21121112", "Sem resíduo exclusivo na eliminação"),
+        ("ITIS x TGLOG", "ITIS", -17261.71, "21121193", "Despesa operacional registrada na ITIS e não na TGLOG"),
+    ]
+    aba4 = []
+    for idx, (cruz, emp_o, v_elim, conta, coment) in enumerate(raw_somente_elim, start=1):
+        aba4.append(
+            {
+                "linha": idx,
+                "cruzamento": cruz,
+                "empresa_origem": emp_o,
+                "valor_comp_elim": round(v_elim, 2),
+                "conta": conta,
+                "resultado_analise": classificar_item9_somente_eliminacao(v_elim),
+                "comentarios_analista": coment,
+            }
+        )
+
+    return {
+        "eliminacao_x_compfinal": aba1,
+        "expurgadas_compfinal": aba2,
+        "somente_compfinal": aba3,
+        "somente_eliminacao": aba4,
+    }
 

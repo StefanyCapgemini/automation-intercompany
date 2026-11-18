@@ -159,6 +159,121 @@ def validar_totais_resultado_silver(
 
 
 # ==============================================================================
+# 3.1. FUNÇÕES DE CLASSIFICAÇÃO DA CAMADA SILVER (ITEM 9 — COMP. GERAIS E ELIMINÁVEIS PATRIMONIAL)
+# ==============================================================================
+
+def classificar_item9_eliminacao_x_compfinal(
+    valor_comp_elim: float,
+    valor_comp_final: float,
+    tolerancia: float = 0.005,
+) -> dict[str, Any]:
+    """
+    Aba 'Eliminação x CompFinal':
+      - Coluna G (Diferença) = Valor_CompElim (Col E) - Valor_CompFinal (Col F)
+      - Valor igual a 0 -> 'Sucesso' | Valor diferente de 0 -> 'Requer Análise'
+    """
+    elim = round(float(valor_comp_elim or 0.0), 2)
+    comp = round(float(valor_comp_final or 0.0), 2)
+    diferenca = round(elim - comp, 2)
+    status = "Sucesso" if abs(diferenca) <= tolerancia else "Requer Análise"
+    return {
+        "valor_comp_elim": elim,
+        "valor_comp_final": comp,
+        "diferenca": diferenca,
+        "resultado_analise": status,
+    }
+
+
+def classificar_item9_expurgadas_compfinal(
+    tipo_empresa_base_mestre: str,
+) -> str:
+    """
+    Aba 'Expurgadas_CompFinal':
+      - Analisa Empresa Origem (Coluna B) contra a Base Mestre:
+      - Empresa Não Eliminável -> 'Sucesso'
+      - Empresa Eliminável -> 'Requer Análise'
+    """
+    tipo = str(tipo_empresa_base_mestre or "").strip().casefold()
+    if "não eliminável" in tipo or "nao eliminavel" in tipo:
+        return "Sucesso"
+    return "Requer Análise"
+
+
+def classificar_item9_somente_compfinal(
+    valor_comp_final: float,
+    tolerancia: float = 0.005,
+) -> str:
+    """
+    Aba 'Somente_CompFinal':
+      - Campo analisado: Conta (Col D) e Valor_CompFinal (Col E)
+      - Valor igual a 0 -> 'Sucesso' | Valor diferente de 0 -> 'Requer Análise'
+    """
+    val = round(float(valor_comp_final or 0.0), 2)
+    return "Sucesso" if abs(val) <= tolerancia else "Requer Análise"
+
+
+def classificar_item9_somente_eliminacao(
+    valor_comp_elim: float,
+    tolerancia: float = 0.005,
+) -> str:
+    """
+    Aba 'Somente_Eliminacao':
+      - Campo analisado: Valor_CompElim (Col C)
+      - Valor igual a 0 -> 'Sucesso' | Valor diferente de 0 -> 'Requer Análise'
+    """
+    val = round(float(valor_comp_elim or 0.0), 2)
+    return "Sucesso" if abs(val) <= tolerancia else "Requer Análise"
+
+
+def gerar_quadro_sintetico_item9(dados_item9: dict[str, list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """
+    Gera o Quadro Sintético (Resumo) destacando automaticamente os indicadores
+    do processamento das 4 abas do relatório Validacao_Eliminacoes x CompFinais_Patrimonial.
+    """
+    config_abas = [
+        ("Eliminação x CompFinal", "eliminacao_x_compfinal", "diferenca", "Diferença (Col G) = 0"),
+        ("Expurgadas_CompFinal", "expurgadas_compfinal", "valor_comp_final", "Empresa Origem = Não Eliminável"),
+        ("Somente_CompFinal", "somente_compfinal", "valor_comp_final", "Valor_CompFinal (Col E) = 0"),
+        ("Somente_Eliminacao", "somente_eliminacao", "valor_comp_elim", "Valor_CompElim (Col C) = 0"),
+    ]
+    resumo = []
+    for nome_aba, chave, col_valor, regra_desc in config_abas:
+        registros = dados_item9.get(chave, [])
+        total = len(registros)
+        sucesso = sum(1 for r in registros if r.get("resultado_analise") == "Sucesso")
+        requer_analise = sum(1 for r in registros if r.get("resultado_analise") == "Requer Análise")
+        atencao = total - sucesso - requer_analise
+        impacto_rs = round(
+            sum(
+                abs(float(r.get(col_valor) or 0.0))
+                for r in registros
+                if r.get("resultado_analise") != "Sucesso"
+            ),
+            2,
+        )
+        if requer_analise > 0:
+            status_geral = "Requer Análise"
+        elif atencao > 0:
+            status_geral = "Atenção"
+        else:
+            status_geral = "Sucesso"
+
+        resumo.append(
+            {
+                "aba_relatorio": nome_aba,
+                "regra_aplicada": regra_desc,
+                "total_registros": total,
+                "qtd_sucesso": sucesso,
+                "qtd_atencao": atencao,
+                "qtd_requer_analise": requer_analise,
+                "impacto_divergencia_rs": impacto_rs,
+                "classificacao_sintetica": status_geral,
+            }
+        )
+    return resumo
+
+
+# ==============================================================================
 # 4. SQL DDL & MERGE SCRIPTS PARA UNITY CATALOG / DATABRICKS
 # ==============================================================================
 
