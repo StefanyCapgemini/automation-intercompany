@@ -1,0 +1,11 @@
+command:
+  - "streamlit"
+  - "run"
+  - "app.py"
+env:
+  - name: "DATABRICKS_CATALOG"
+    value: "workspace"
+  - name: "DATABRICKS_SCHEMA_SILVER"
+    value: "silver"
+  - name: "DATABRICKS_SCHEMA_GOLD"
+    value: "gold"
