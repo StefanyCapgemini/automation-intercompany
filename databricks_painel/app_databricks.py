@@ -8,6 +8,8 @@ Paleta oficial extraída do Documento Funcional (#5A189A, #2B0A4E, #C7A6E8, #6E6
 """
 
 from __future__ import annotations
+import calendar
+from datetime import date
 import json
 import streamlit as st
 
@@ -1362,6 +1364,48 @@ def formatar_brl(valor):
     return f"-R$ {s}" if neg else f"R$ {s}"
 
 
+def _extrair_intervalo_competencia(texto: str) -> tuple[date, date] | None:
+    s = str(texto or "").strip()
+    if not s:
+        return None
+    partes = s.replace("-", "/").split("/")
+    try:
+        if len(partes) == 2:
+            if len(partes[0]) == 4:
+                ano, mes = int(partes[0]), int(partes[1])
+            else:
+                mes, ano = int(partes[0]), int(partes[1])
+            ultimo_dia = calendar.monthrange(ano, mes)[1]
+            return date(ano, mes, 1), date(ano, mes, ultimo_dia)
+        if len(partes) == 3:
+            if len(partes[0]) == 4:
+                d = date(int(partes[0]), int(partes[1]), int(partes[2]))
+            else:
+                d = date(int(partes[2]), int(partes[1]), int(partes[0]))
+            return d, d
+    except (ValueError, IndexError):
+        return None
+    return None
+
+
+def registro_dentro_filtro_data(competencia_str: str, filtro_data) -> bool:
+    if not filtro_data:
+        return True
+    if isinstance(filtro_data, (tuple, list)):
+        if len(filtro_data) == 0:
+            return True
+        dt_ini = filtro_data[0]
+        dt_fim = filtro_data[1] if len(filtro_data) > 1 else filtro_data[0]
+    else:
+        dt_ini = dt_fim = filtro_data
+
+    intervalo_reg = _extrair_intervalo_competencia(competencia_str)
+    if intervalo_reg is None:
+        return True
+    reg_ini, reg_fim = intervalo_reg
+    return not (reg_fim < dt_ini or reg_ini > dt_fim)
+
+
 def renderizar_kpi_cards(cards: list[tuple[str, str]]) -> None:
     colunas = st.columns(len(cards))
     for col, (rotulo, valor) in zip(colunas, cards):
@@ -1511,26 +1555,44 @@ def main():
     # ==========================================================================
     with aba_pat:
         registros_pat = st.session_state.dados_pat["eliminaveis"]
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c_dt, c1, c2, c3, c4, c5 = st.columns(6)
         resps = sorted({r["responsavel"] for r in registros_pat if r["responsavel"]})
+        with c_dt:
+            f_data_pat = st.date_input(
+                "Data / Período",
+                value=(date(2026, 8, 1), date(2026, 8, 31)),
+                format="DD/MM/YYYY",
+                key="f_data_pat",
+            )
         with c1:
-            f_resp = st.multiselect("Responsável", resps)
+            f_resp = st.multiselect("Responsável", resps, key="f_resp_pat")
         with c2:
-            f_st_ana = st.multiselect("Status (Analista)", STATUS_ANALISTA_OPCOES)
+            f_st_ana = st.multiselect("Status (Analista)", STATUS_ANALISTA_OPCOES, key="f_st_ana_pat")
         with c3:
-            f_st_rev = st.multiselect("Status (Revisor)", STATUS_REVISOR_OPCOES)
+            f_st_rev = st.multiselect("Status (Revisor)", STATUS_REVISOR_OPCOES, key="f_st_rev_pat")
         with c4:
-            f_mov = st.selectbox("Movimentação", ["Todos", "Com movimentação (!= 0)", "Sem movimentação (= 0)", "Ocultar Incorporadas"])
+            f_mov = st.selectbox(
+                "Movimentação",
+                ["Todos", "Com movimentação (!= 0)", "Sem movimentação (= 0)", "Ocultar Incorporadas"],
+                key="f_mov_pat",
+            )
         with c5:
-            ord_por = st.selectbox("Ordenar por", ["Ordem Padrão", "Empresa (A-Z)", "Maior Dif. Líquida", "Menor Dif. Líquida", "Responsável"])
+            ord_por = st.selectbox(
+                "Ordenar por",
+                ["Ordem Padrão", "Empresa (A-Z)", "Maior Dif. Líquida", "Menor Dif. Líquida", "Responsável"],
+                key="ord_por_pat",
+            )
 
         busca = st.text_input(
             "Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
             placeholder="Ex.: TBRA x ITIS, Azure, provisão...",
+            key="busca_pat",
         )
 
         filtrados = []
         for r in registros_pat:
+            if not registro_dentro_filtro_data(r.get("competencia", ""), f_data_pat):
+                continue
             if f_resp and r["responsavel"] not in f_resp:
                 continue
             if f_st_ana and r["status_analista"] not in f_st_ana:
@@ -1615,15 +1677,89 @@ def main():
     # ==========================================================================
     with aba_res:
         registros_res = st.session_state.dados_res
+        cr_dt, cr1, cr2, cr3, cr4, cr5 = st.columns(6)
+        resps_res = sorted({r["responsavel"] for r in registros_res if r["responsavel"]})
+        with cr_dt:
+            f_data_res = st.date_input(
+                "Data / Período",
+                value=(date(2026, 8, 1), date(2026, 8, 31)),
+                format="DD/MM/YYYY",
+                key="f_data_res",
+            )
+        with cr1:
+            f_resp_res = st.multiselect("Responsável", resps_res, key="f_resp_res")
+        with cr2:
+            f_st_ana_res = st.multiselect("Status (Analista)", STATUS_ANALISTA_OPCOES, key="f_st_ana_res")
+        with cr3:
+            f_st_rev_res = st.multiselect("Status (Revisor)", STATUS_REVISOR_OPCOES, key="f_st_rev_res")
+        with cr4:
+            f_mov_res = st.selectbox(
+                "Movimentação",
+                ["Todos", "Com movimentação (!= 0)", "Sem movimentação (= 0)", "Ocultar Incorporadas"],
+                key="f_mov_res",
+            )
+        with cr5:
+            ord_por_res = st.selectbox(
+                "Ordenar por",
+                ["Ordem Padrão", "Empresa (A-Z)", "Maior Dif. Líquida", "Menor Dif. Líquida", "Responsável"],
+                key="ord_por_res",
+            )
+
+        busca_res = st.text_input(
+            "Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
+            placeholder="Ex.: TBRA x ITIS, Azure, diferimento...",
+            key="busca_res",
+        )
+
+        filtrados_res = []
+        for r in registros_res:
+            if not registro_dentro_filtro_data(r.get("competencia", ""), f_data_res):
+                continue
+            if f_resp_res and r["responsavel"] not in f_resp_res:
+                continue
+            if f_st_ana_res and r["status_analista"] not in f_st_ana_res:
+                continue
+            if f_st_rev_res and r["status_revisor"] not in f_st_rev_res:
+                continue
+            mov_r = (
+                abs(r.get("jul_inef_trib") or 0.0)
+                + abs(r.get("jul_diferenca") or 0.0)
+                + abs(r.get("ago_inef_trib") or 0.0)
+                + abs(r.get("ago_diferenca") or 0.0)
+            )
+            if f_mov_res == "Com movimentação (!= 0)" and mov_r == 0:
+                continue
+            if f_mov_res == "Sem movimentação (= 0)" and mov_r != 0:
+                continue
+            if f_mov_res == "Ocultar Incorporadas" and r["responsavel"] == "Incorporada":
+                continue
+            if busca_res and busca_res.casefold() not in " ".join([
+                r.get("cruzamento", ""),
+                r.get("responsavel", ""),
+                r.get("comentarios_analista", ""),
+                r.get("comentarios_revisor", ""),
+            ]).casefold():
+                continue
+            filtrados_res.append(r)
+
+        if ord_por_res == "Empresa (A-Z)":
+            filtrados_res.sort(key=lambda x: x["cruzamento"])
+        elif ord_por_res == "Maior Dif. Líquida":
+            filtrados_res.sort(key=lambda x: abs(x.get("ago_inef_liq") or 0.0), reverse=True)
+        elif ord_por_res == "Menor Dif. Líquida":
+            filtrados_res.sort(key=lambda x: abs(x.get("ago_inef_liq") or 0.0))
+        elif ord_por_res == "Responsável":
+            filtrados_res.sort(key=lambda x: (x["responsavel"], x["cruzamento"]))
+
         renderizar_kpi_cards([
-            ("Cruzamentos Resultado", f"{len(registros_res)}"),
-            ("Soma Inef. Líq. Julho", formatar_brl(sum(r["jul_inef_liq"] for r in registros_res))),
-            ("Soma Inef. Líq. Agosto", formatar_brl(sum(r["ago_inef_liq"] for r in registros_res))),
-            ("Soma Dif. Real Acum. (Col AR)", formatar_brl(sum(r["dif_real_acumulada_ar"] for r in registros_res))),
+            ("Cruzamentos Ativos", f"{len(filtrados_res)} / {len(registros_res)}"),
+            ("Soma Inef. Líq. Julho", formatar_brl(sum(r["jul_inef_liq"] for r in filtrados_res))),
+            ("Soma Inef. Líq. Agosto", formatar_brl(sum(r["ago_inef_liq"] for r in filtrados_res))),
+            ("Soma Dif. Real Acum. (Col AR)", formatar_brl(sum(r["dif_real_acumulada_ar"] for r in filtrados_res))),
         ])
 
         ed_res = st.data_editor(
-            registros_res,
+            filtrados_res,
             use_container_width=True,
             height=480,
             num_rows="dynamic",
@@ -1648,13 +1784,15 @@ def main():
             key="ed_res",
         )
         if st.button(":material/save: Recalcular Ineficiência Líquida e Colunas AR/AS", type="primary", key="btn_save_res"):
-            for r in ed_res:
-                r["jul_inef_liq"] = round(float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2)
-                c = calcular_metricas_resultado(r.get("ago_inef_trib"), r.get("ago_diferenca"), r.get("jul_diferenca"))
-                r["ago_inef_liq"] = c["inef_liquida"]
-                r["dif_real_acumulada_ar"] = c["dif_real_acumulada_ar"]
-                r["sugestao_diferenca_as"] = c["sugestao_diferenca_as"]
-            st.session_state.dados_res = ed_res
+            mapa_res = {r["cruzamento"]: r for r in ed_res if r.get("cruzamento")}
+            for r in registros_res:
+                if r["cruzamento"] in mapa_res:
+                    r.update(mapa_res[r["cruzamento"]])
+                    r["jul_inef_liq"] = round(float(r.get("jul_inef_trib") or 0.0) + float(r.get("jul_diferenca") or 0.0), 2)
+                    c = calcular_metricas_resultado(r.get("ago_inef_trib"), r.get("ago_diferenca"), r.get("jul_diferenca"))
+                    r["ago_inef_liq"] = c["inef_liquida"]
+                    r["dif_real_acumulada_ar"] = c["dif_real_acumulada_ar"]
+                    r["sugestao_diferenca_as"] = c["sugestao_diferenca_as"]
             st.success("Painel de Resultado recalculado com sucesso.")
 
     # ==========================================================================
