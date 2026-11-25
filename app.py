@@ -38,6 +38,9 @@ modulo_quadro_resumo = carregar_script(
 modulo_conciliacao = carregar_script(
 	"conciliacao_intercompany", "conciliacao-intercompany.py"
 )
+modulo_navigator = carregar_script(
+	"acessar_validator", "acessar-validator.py"
+)
 
 
 def executar_com_com(funcao):
@@ -53,10 +56,8 @@ def atualizar_caixa_de_entrada() -> None:
 	sincronizar_todas_as_pastas(namespace)
 
 
-def executar_navigator() -> str:
-	modulo_nav = carregar_script("acessar_validator", "acessar-validator.py")
-	resultado = modulo_nav.acessar_navigator()
-	return resultado or "Rotina do Navigator finalizada."
+def executar_navigator() -> list[str]:
+	return modulo_navigator.mover_arquivos_navigator()
 
 
 def executar_conciliacoes() -> list[str]:
