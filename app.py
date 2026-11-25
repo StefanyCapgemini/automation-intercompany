@@ -35,6 +35,9 @@ modulo_composicao = carregar_script("composicao_geral", "composicao-geral.py")
 modulo_quadro_resumo = carregar_script(
 	"quadro_resumo_patrimonial", "quadro-resumo-patrimonial.py"
 )
+modulo_conciliacao = carregar_script(
+	"conciliacao_intercompany", "conciliacao-intercompany.py"
+)
 
 
 def executar_com_com(funcao):
@@ -56,10 +59,8 @@ def executar_navigator() -> str:
 	return resultado or "Rotina do Navigator finalizada."
 
 
-def executar_conciliacoes() -> str:
-	modulo_conc = carregar_script("conciliacao_intercompany", "conciliacao-intercompany.py")
-	modulo_conc.acessar_portal()
-	return "Rotina de Conciliações (Portal E2E) finalizada."
+def executar_conciliacoes() -> list[str]:
+	return modulo_conciliacao.mover_arquivos_conciliacao()
 
 
 def criar_botao_acao(texto: str, icone, on_click=None, primary: bool = True) -> ft.Button:
@@ -347,5 +348,5 @@ def main(page: ft.Page) -> None:
 	)
 
 
-if __name__ == "__main__":
+if __name__ in ("__main__", "eliminacao_patrimonial"):
 	ft.run(main)
