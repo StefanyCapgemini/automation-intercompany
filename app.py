@@ -350,3 +350,5 @@ def main(page: ft.Page) -> None:
 
 if __name__ in ("__main__", "eliminacao_patrimonial"):
 	ft.run(main)
+	if __name__ == "eliminacao_patrimonial":
+		sys.exit(0)
