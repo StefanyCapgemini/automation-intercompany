@@ -47,6 +47,8 @@ $arguments = @(
 	"--add-data", "$(Join-Path $projectDir 'eliminacao-resultado.py');.",
 	"--add-data", "$(Join-Path $projectDir 'composicao-geral.py');.",
 	"--add-data", "$(Join-Path $projectDir 'quadro-resumo-patrimonial.py');.",
+	"--add-data", "$(Join-Path $projectDir 'acessar-validator.py');.",
+	"--add-data", "$(Join-Path $projectDir 'conciliacao-intercompany.py');.",
 	"--add-data", "$(Join-Path $projectDir 'interno.py');.",
 	"--add-data", "$(Join-Path $projectDir 'config');config",
 	"--add-data", "$runtimeZip;flet_desktop/app",

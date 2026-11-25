@@ -12,6 +12,11 @@ PROJECT_DIR = Path(__file__).resolve().parent
 if str(PROJECT_DIR) not in sys.path:
 	sys.path.insert(0, str(PROJECT_DIR))
 
+PRIMARY = "#5A189A"
+PRIMARY_DARK = "#2B0A4E"
+SURFACE = "#F7F7FA"
+BORDER = "#E4E4EC"
+
 
 def carregar_script(nome_modulo: str, nome_arquivo: str):
 	caminho = PROJECT_DIR / nome_arquivo
@@ -30,6 +35,12 @@ modulo_composicao = carregar_script("composicao_geral", "composicao-geral.py")
 modulo_quadro_resumo = carregar_script(
 	"quadro_resumo_patrimonial", "quadro-resumo-patrimonial.py"
 )
+modulo_conciliacao = carregar_script(
+	"conciliacao_intercompany", "conciliacao-intercompany.py"
+)
+modulo_navigator = carregar_script(
+	"acessar_validator", "acessar-validator.py"
+)
 
 
 def executar_com_com(funcao):
@@ -45,45 +56,79 @@ def atualizar_caixa_de_entrada() -> None:
 	sincronizar_todas_as_pastas(namespace)
 
 
-def main(page: ft.Page) -> None:
-	page.title = "Automacao Intercompany"
-	page.theme_mode = ft.ThemeMode.LIGHT
-	page.bgcolor = "#F3F6F3"
-	page.padding = 0
-	page.scroll = ft.ScrollMode.AUTO
-	page.window.width = 980
-	page.window.height = 760
-	page.window.min_width = 760
-	page.window.min_height = 620
+def executar_navigator() -> list[str]:
+	return modulo_navigator.mover_arquivos_navigator()
 
-	registros = []
-	botoes = []
+
+def executar_conciliacoes() -> list[str]:
+	return modulo_conciliacao.mover_arquivos_conciliacao()
+
+
+def criar_botao_acao(texto: str, icone, on_click=None, primary: bool = True) -> ft.Button:
+	estilo = ft.ButtonStyle(
+		shape=ft.RoundedRectangleBorder(radius=8),
+		padding=ft.Padding.symmetric(horizontal=16, vertical=0),
+		elevation=0,
+		bgcolor=PRIMARY if primary else ft.Colors.WHITE,
+		color=ft.Colors.WHITE if primary else PRIMARY,
+		side=None if primary else ft.BorderSide(1, PRIMARY),
+	)
+	return ft.Button(
+		content=ft.Row(
+			[
+				ft.Icon(icone, size=18),
+				ft.Text(texto, size=13, weight=ft.FontWeight.W_500),
+			],
+			spacing=8,
+			tight=True,
+		),
+		height=40,
+		style=estilo,
+		on_click=on_click,
+	)
+
+
+def main(page: ft.Page) -> None:
+	page.title = "Automação Intercompany"
+	page.theme_mode = ft.ThemeMode.LIGHT
+	page.bgcolor = ft.Colors.WHITE
+	page.padding = 32
+	page.scroll = ft.ScrollMode.AUTO
+	page.window.width = 960
+	page.window.height = 720
+	page.window.min_width = 760
+	page.window.min_height = 580
+
+	registros: list[str] = []
+	botoes: list[ft.Button] = []
 	ocupado = False
 
-	texto_status = ft.Text("Pronto para iniciar", size=13, color="#285D4D")
-	icone_status = ft.Icon(ft.Icons.CHECK_CIRCLE, size=17, color="#287A58")
+	texto_status = ft.Text("Pronto para iniciar", size=12, color="#285D4D", weight=ft.FontWeight.W_500)
+	icone_status = ft.Icon(ft.Icons.CHECK_CIRCLE, size=16, color="#287A58")
 	indicador_status = ft.Container(
-		content=ft.Row([icone_status, texto_status], spacing=8),
+		content=ft.Row([icone_status, texto_status], spacing=6, tight=True),
 		bgcolor="#E5F2E9",
-		padding=ft.Padding.symmetric(horizontal=14, vertical=9),
-		border_radius=5,
+		border_radius=20,
+		padding=ft.Padding.symmetric(horizontal=12, vertical=6),
 	)
-	progresso = ft.ProgressRing(visible=False, width=20, height=20, stroke_width=2)
+	progresso = ft.ProgressRing(visible=False, width=18, height=18, stroke_width=2, color=PRIMARY)
+
 	caixa_log = ft.TextField(
 		value="Aguardando a primeira ação.",
 		multiline=True,
 		read_only=True,
-		min_lines=12,
-		max_lines=12,
-		text_style=ft.TextStyle(font_family="Cascadia Code", size=12, color="#34413A"),
-		border=ft.NoInputBorder(),
+		min_lines=14,
+		max_lines=18,
+		text_style=ft.TextStyle(font_family="Cascadia Code", size=12, color="#2B0A4E"),
+		border=ft.InputBorder.NONE,
 		bgcolor=ft.Colors.TRANSPARENT,
 		expand=True,
 	)
 	botao_limpar = ft.IconButton(
 		icon=ft.Icons.DELETE_OUTLINE,
+		icon_size=20,
 		tooltip="Limpar log",
-		icon_color="#64736A",
+		icon_color=ft.Colors.GREY_600,
 	)
 
 	def atualizar_log(mensagem: str) -> None:
@@ -98,7 +143,7 @@ def main(page: ft.Page) -> None:
 		icone_status.color = cor
 		indicador_status.bgcolor = fundo
 
-	async def executar_acao(nome: str, funcao) -> None:
+	async def executar_acao(nome: str, funcao, usar_com: bool = True) -> None:
 		nonlocal ocupado
 		if ocupado:
 			return
@@ -113,7 +158,11 @@ def main(page: ft.Page) -> None:
 		page.update()
 
 		try:
-			resultado = await asyncio.to_thread(executar_com_com, funcao)
+			if usar_com:
+				resultado = await asyncio.to_thread(executar_com_com, funcao)
+			else:
+				resultado = await asyncio.to_thread(funcao)
+
 			if resultado is None:
 				atualizar_log("Caixa de entrada atualizada.")
 			elif isinstance(resultado, list):
@@ -123,12 +172,14 @@ def main(page: ft.Page) -> None:
 						atualizar_log(f"- {arquivo}")
 				else:
 					atualizar_log("Nenhum arquivo novo foi salvo.")
+			elif isinstance(resultado, str):
+				atualizar_log(resultado)
 			else:
 				atualizar_log(f"Processamento concluido. Anexos salvos: {resultado}")
 			definir_status("Concluído", "#285D4D", "#E5F2E9", ft.Icons.CHECK_CIRCLE)
 		except Exception as erro:
 			atualizar_log(f"Falha na operacao: {erro}")
-			definir_status("A operação encontrou um erro", "#A33B32", "#F8E8E5", ft.Icons.ERROR_OUTLINE)
+			definir_status("A operação encontrou um erro", "#D32F2F", "#FFEBEE", ft.Icons.ERROR_OUTLINE)
 		finally:
 			ocupado = False
 			for botao in botoes:
@@ -136,9 +187,6 @@ def main(page: ft.Page) -> None:
 			botao_limpar.disabled = False
 			progresso.visible = False
 			page.update()
-
-	async def clicar_atualizar(_evento) -> None:
-		await executar_acao("atualização da caixa de entrada", atualizar_caixa_de_entrada)
 
 	async def clicar_patrimonial(_evento) -> None:
 		await executar_acao(
@@ -164,6 +212,23 @@ def main(page: ft.Page) -> None:
 			modulo_quadro_resumo.salvar_anexos_quadro_resumo,
 		)
 
+	async def clicar_navigator(_evento) -> None:
+		await executar_acao(
+			"Navigator",
+			executar_navigator,
+			usar_com=False,
+		)
+
+	async def clicar_conciliacoes(_evento) -> None:
+		await executar_acao(
+			"Conciliações",
+			executar_conciliacoes,
+			usar_com=False,
+		)
+
+	async def clicar_atualizar(_evento) -> None:
+		await executar_acao("atualização da caixa de entrada", atualizar_caixa_de_entrada)
+
 	def limpar_log(_evento) -> None:
 		registros.clear()
 		caixa_log.value = ""
@@ -171,158 +236,120 @@ def main(page: ft.Page) -> None:
 
 	botao_limpar.on_click = limpar_log
 
-	botao_atualizar = ft.Button(
-		content=ft.Row(
-			[
-				ft.Icon(ft.Icons.SYNC, size=20),
-				ft.Text("Atualizar caixa de entrada", size=15, weight=ft.FontWeight.W_600),
-			],
-			alignment=ft.MainAxisAlignment.CENTER,
-			spacing=11,
-		),
-		on_click=clicar_atualizar,
-		bgcolor="#176B5B",
-		color=ft.Colors.WHITE,
-		height=72,
-		expand=True,
-	)
-	botao_patrimonial = ft.Button(
-		content=ft.Row(
-			[
-				ft.Icon(ft.Icons.ADD_ROAD, size=21),
-				ft.Text("Eliminação Patrimonial", size=15, weight=ft.FontWeight.W_600),
-			],
-			alignment=ft.MainAxisAlignment.CENTER,
-			spacing=11,
-		),
-		on_click=clicar_patrimonial,
-		bgcolor="#660099",
-		color="#fff",
-		height=72,
-		expand=True,
-	)
-	botao_resultado = ft.Button(
-		content=ft.Row(
-			[
-				ft.Icon(ft.Icons.ASSESSMENT, size=21),
-				ft.Text("Eliminação Resultado", size=15, weight=ft.FontWeight.W_600),
-			],
-			alignment=ft.MainAxisAlignment.CENTER,
-			spacing=11,
-		),
-		on_click=clicar_resultado,
-		bgcolor="#660099",
-		color="#fff",
-		height=72,
-		expand=True,
-	)
-	botao_composicao = ft.Button(
-		content=ft.Row(
-			[
-				ft.Icon(ft.Icons.ACCOUNT_BALANCE, size=21),
-				ft.Text("Composição Geral", size=15, weight=ft.FontWeight.W_600),
-			],
-			alignment=ft.MainAxisAlignment.CENTER,
-			spacing=11,
-		),
-		on_click=clicar_composicao,
-		bgcolor="#660099",
-		color="#fff",
-		height=72,
-		expand=True,
-	)
-	botao_quadro_resumo = ft.Button(
-		content=ft.Row(
-			[
-				ft.Icon(ft.Icons.TABLE_CHART, size=21),
-				ft.Text(
-					"Quadro Resumo\nPatrimonial Consolidado",
-					size=14,
-					weight=ft.FontWeight.W_600,
-				),
-			],
-			alignment=ft.MainAxisAlignment.CENTER,
-			spacing=11,
-		),
-		on_click=clicar_quadro_resumo,
-		bgcolor="#176B5B",
-		color=ft.Colors.WHITE,
-		height=72,
-		expand=True,
-	)
+	botao_patrimonial = criar_botao_acao("Eliminação Patrimonial", ft.Icons.BALANCE, clicar_patrimonial, primary=True)
+	botao_resultado = criar_botao_acao("Eliminação Resultado", ft.Icons.BAR_CHART, clicar_resultado, primary=True)
+	botao_composicao = criar_botao_acao("Composição Geral", ft.Icons.ACCOUNT_BALANCE, clicar_composicao, primary=True)
+	botao_quadro_resumo = criar_botao_acao("Quadro Resumo", ft.Icons.TABLE_CHART_OUTLINED, clicar_quadro_resumo, primary=True)
+	botao_navigator = criar_botao_acao("Navigator", ft.Icons.TRAVEL_EXPLORE, clicar_navigator, primary=False)
+	botao_conciliacoes = criar_botao_acao("Conciliações", ft.Icons.COMPARE_ARROWS, clicar_conciliacoes, primary=False)
+	botao_atualizar = criar_botao_acao("Atualizar caixa", ft.Icons.SYNC, clicar_atualizar, primary=False)
+
 	botoes.extend(
 		[
-			botao_atualizar,
 			botao_patrimonial,
 			botao_resultado,
 			botao_composicao,
 			botao_quadro_resumo,
+			botao_navigator,
+			botao_conciliacoes,
+			botao_atualizar,
 		]
 	)
 
-	cabecalho = ft.Row(
+	header = ft.Row(
 		[
 			ft.Column(
 				[
 					ft.Text(
 						"AUTOMAÇÃO DE PROCESSOS",
 						size=11,
-						weight=ft.FontWeight.W_700,
-						color="#63736A",
+						color=ft.Colors.GREY_600,
+						weight=ft.FontWeight.W_600,
 					),
-					ft.Text("Intercompany", size=28, weight=ft.FontWeight.W_700, color="#23352D"),
+					ft.Text(
+						"Intercompany",
+						size=26,
+						weight=ft.FontWeight.BOLD,
+						color=PRIMARY_DARK,
+					),
 				],
-				spacing=4,
+				spacing=2,
 			),
-			ft.Row([progresso, indicador_status], spacing=10),
+			ft.Row([progresso, indicador_status], spacing=10, tight=True),
 		],
 		alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
 		vertical_alignment=ft.CrossAxisAlignment.CENTER,
 	)
 
-	log_cabecalho = ft.Row(
+	acoes = ft.Row(
 		[
-			ft.Column(
-				[
-					ft.Text("Log da execução", size=17, weight=ft.FontWeight.W_600, color="#23352D"),
-					ft.Text("Resultados e mensagens das rotinas", size=12, color="#68766E"),
-				],
-				spacing=3,
-			),
-			botao_limpar,
+			botao_patrimonial,
+			botao_resultado,
+			botao_composicao,
+			botao_quadro_resumo,
+			ft.VerticalDivider(width=16, color=BORDER),
+			botao_navigator,
+			botao_conciliacoes,
+			botao_atualizar,
 		],
-		alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-		vertical_alignment=ft.CrossAxisAlignment.CENTER,
+		wrap=True,
+		spacing=10,
+		run_spacing=10,
 	)
 
-	conteudo = ft.Column(
-		[
-			cabecalho,
-			ft.Divider(height=1, color="#DCE4DD"),
-			ft.Text("Ações", size=13, weight=ft.FontWeight.W_700, color="#63736A"),
-			ft.Column(
-				[
-					ft.Row([botao_patrimonial, botao_resultado], spacing=10),
-					ft.Row([botao_composicao, botao_quadro_resumo, botao_atualizar], spacing=10),
-				],
-				spacing=10,
-			),
-			ft.Divider(height=1, color="#DCE4DD"),
-			log_cabecalho,
-			ft.Container(
-				content=caixa_log,
-				bgcolor=ft.Colors.WHITE,
-				padding=12,
-				border_radius=6,
-				height=340,
-			),
-		],
-		spacing=18,
-		alignment=ft.MainAxisAlignment.START,
-		horizontal_alignment=ft.CrossAxisAlignment.STRETCH,
+	log_card = ft.Container(
+		content=ft.Column(
+			[
+				ft.Row(
+					[
+						ft.Column(
+							[
+								ft.Text("Log da execução", size=15, weight=ft.FontWeight.W_600, color=PRIMARY_DARK),
+								ft.Text(
+									"Resultados e mensagens das rotinas",
+									size=12,
+									color=ft.Colors.GREY_600,
+								),
+							],
+							spacing=2,
+						),
+						botao_limpar,
+					],
+					alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+					vertical_alignment=ft.CrossAxisAlignment.CENTER,
+				),
+				ft.Container(
+					content=caixa_log,
+					expand=True,
+					bgcolor=SURFACE,
+					border_radius=8,
+					padding=12,
+				),
+			],
+			spacing=10,
+			expand=True,
+		),
+		expand=True,
+		border=ft.Border.all(1, BORDER),
+		border_radius=12,
+		padding=16,
 	)
-	page.add(ft.Container(content=conteudo, padding=28, expand=True))
+
+	page.add(
+		ft.Column(
+			[
+				header,
+				ft.Text("Ações", size=13, weight=ft.FontWeight.W_600, color=PRIMARY_DARK),
+				acoes,
+				log_card,
+			],
+			spacing=20,
+			expand=True,
+		)
+	)
 
 
-if __name__ == "__main__":
+if __name__ in ("__main__", "eliminacao_patrimonial"):
 	ft.run(main)
+	if __name__ == "eliminacao_patrimonial":
+		sys.exit(0)
