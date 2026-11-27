@@ -14,17 +14,27 @@ from outlook_sync import sincronizar_todas_as_pastas
 ASSUNTO = re.compile(
 	r"^RELAT[ÓO]RIO DE ELIMINA[ÇC][ÃA]O PATRIMONIAL(?:\s+V\d+)?"
 	r"\s*[–-]\s*"
-    r"(?P<empresa>.+?)\s+\((?P<codigo1>[^()]+)\)\s+x\s+"
+	r"(?P<empresa>.+?)\s+\((?P<codigo1>[^()]+)\)\s+x\s+"
 	r"\((?P<codigo2>[^()]+)\)\s+(?P<empresa2>.+?)\s*[–_-]\s*"
 	r"(?P<mes>0[1-9]|1[0-2])(?:[/_-])(?P<ano>\d{4})"
 	r"(?:\s*[_-]\s*V\d+)?(?:\s+.*)?$",
-    re.IGNORECASE,
+	re.IGNORECASE,
 )
 PASTA_DESTINO = Path(r"\\brtssisp003\bbb0133$\2 - Intercompany")
-EXTENSOES_PERMITIDAS = {".xls", ".xlsx", ".csv", ".xlsm",".zip"}
+EXTENSOES_PERMITIDAS = {".xls", ".xlsx", ".csv", ".xlsm", ".zip"}
 COMPETENCIA_ANEXO = re.compile(
 	r"(?<!\d)(?P<mes>0?[1-9]|1[0-2])[_/-](?P<ano>\d{4})(?!\d)"
 )
+
+
+class ListaArquivosSalvos(list):
+	"""Lista de arquivos salvos com formatação legível para o log."""
+
+	def __str__(self) -> str:
+		if not self:
+			return "0\nNenhum arquivo novo foi salvo."
+		linhas = "\n".join(f"- {arquivo}" for arquivo in self)
+		return f"{len(self)}\n{linhas}"
 
 
 def obter_competencia_anexo(nome: str) -> tuple[str, str] | None:
@@ -38,8 +48,8 @@ def obter_competencia_anexo(nome: str) -> tuple[str, str] | None:
 	return ano, mes
 
 
-def salvar_anexos_dos_relatorios() -> int:
-	"""Processa os e-mails da Caixa de Entrada e retorna a quantidade salva."""
+def salvar_anexos_dos_relatorios() -> ListaArquivosSalvos:
+	"""Processa os e-mails da Caixa de Entrada e retorna os caminhos relativos dos arquivos salvos."""
 	outlook = win32com.client.Dispatch("Outlook.Application").GetNamespace("MAPI")
 	sincronizar_todas_as_pastas(outlook)
 	organizar_pastas_empresa_existentes(PASTA_DESTINO, "Eliminação Patrimonial")
@@ -47,7 +57,7 @@ def salvar_anexos_dos_relatorios() -> int:
 	itens = caixa_de_entrada.Items
 	itens.Sort("[ReceivedTime]", True)
 
-	quantidade = 0
+	arquivos_salvos = ListaArquivosSalvos()
 	for item in itens:
 		if getattr(item, "Class", None) != 43:  # olMail
 			continue
@@ -87,20 +97,29 @@ def salvar_anexos_dos_relatorios() -> int:
 			destino = pasta / nome
 			if destino.exists():
 				if destino.suffix.lower() == ".zip":
-					extrair_e_remover_zip(destino)
+					extraidos = extrair_e_remover_zip(destino)
 					organizar_versoes(pasta)
+					for arquivo_extraido in extraidos:
+						arquivos_salvos.append(str(arquivo_extraido.relative_to(PASTA_DESTINO)))
 				continue
 			if arquivo_ja_processado(pasta, nome):
 				continue
 
 			anexo.SaveAsFile(str(destino))
 			if destino.suffix.lower() == ".zip":
-				extrair_e_remover_zip(destino)
-			organizar_versoes(pasta)
-			quantidade += 1
+				extraidos = extrair_e_remover_zip(destino)
+				organizar_versoes(pasta)
+				for arquivo_extraido in extraidos:
+					arquivos_salvos.append(str(arquivo_extraido.relative_to(PASTA_DESTINO)))
+			else:
+				organizar_versoes(pasta)
+				arquivos_salvos.append(str(destino.relative_to(PASTA_DESTINO)))
 
-	return quantidade
+	return arquivos_salvos
 
 
 if __name__ == "__main__":
-	print(f"Anexos salvos: {salvar_anexos_dos_relatorios()}")
+	arquivos_salvos = salvar_anexos_dos_relatorios()
+	print(f"Arquivos salvos: {len(arquivos_salvos)}")
+	for arquivo in arquivos_salvos:
+		print(f"- {arquivo}")
