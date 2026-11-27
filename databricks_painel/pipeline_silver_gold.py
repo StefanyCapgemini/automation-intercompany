@@ -7,8 +7,6 @@ Processos:
 
 from __future__ import annotations
 from dataclasses import dataclass
-from pathlib import Path
-import re
 from typing import Any
 
 # ==============================================================================
@@ -30,6 +28,27 @@ STATUS_REVISOR_OPCOES = [
     "Aguardando retorno dos pontos",
     "Ok para envio",
     "Incorporada",
+]
+
+SUGESTAO_DIFERENCA_OPCOES = [
+    "Receita Bruta maior que Despesa",
+    "Despesa maior que Receita Bruta",
+    "Sem Diferença",
+]
+
+MESES_RESULTADO = [
+    ("jan", "Janeiro", "D", "E", "F"),
+    ("fev", "Fevereiro", "G", "H", "I"),
+    ("mar", "Março", "J", "K", "L"),
+    ("abr", "Abril", "M", "N", "O"),
+    ("mai", "Maio", "P", "Q", "R"),
+    ("jun", "Junho", "S", "T", "U"),
+    ("jul", "Julho", "V", "W", "X"),
+    ("ago", "Agosto", "Y", "Z", "AA"),
+    ("set", "Setembro", "AB", "AC", "AD"),
+    ("out", "Outubro", "AE", "AF", "AG"),
+    ("nov", "Novembro", "AH", "AI", "AJ"),
+    ("dez", "Dezembro", "AK", "AL", "AM"),
 ]
 
 
@@ -95,42 +114,98 @@ def calcular_metricas_patrimonial(
 # 3. FUNÇÕES DE CÁLCULO E REGRAS DA CAMADA SILVER (RESULTADO — ITEM 8)
 # ==============================================================================
 
+def sugerir_diferenca_resultado(acum_diferenca: float) -> str:
+    """
+    Reproduz a fórmula oficial da Coluna AU ('Sugestão Diferença') da aba Resumo:
+      =IFS(AS>0,"Receita Bruta maior que Despesa",
+           AS<0,"Despesa maior que Receita Bruta",
+           AS=0,"Sem Diferença")
+    """
+    valor = round(float(acum_diferenca or 0.0), 2)
+    if valor > 0:
+        return "Receita Bruta maior que Despesa"
+    if valor < 0:
+        return "Despesa maior que Receita Bruta"
+    return "Sem Diferença"
+
+
 def calcular_metricas_resultado(
     inef_trib_atual: float,
     diferenca_atual: float,
     diferencas_historico_mensal: list[float] | None = None,
     dif_acumulada_mes_anterior: float = 0.0,
+    inef_trib_historico_mensal: list[float] | None = None,
+    inef_trib_acumulada_mes_anterior: float = 0.0,
 ) -> dict[str, Any]:
     """
-    Aplica as fórmulas oficiais do Painel de Eliminação de Resultado (Seção 3 e 4):
-      - Ineficiência Líquida = Inef. Trib + Diferença (Divergência)
-      - Coluna AR ('Diferença Real Acumulada'): soma acumulada das diferenças de todos os meses
-      - Coluna AS ('Sugestão de Diferença'): sugere 1 entre 3 status possíveis com base
-        na comparação da Diferença Real Acumulada (Coluna AR).
+    Aplica as fórmulas oficiais do Painel de Eliminação de Resultado (Aba Resumo):
+      - Ineficiência Líquida mensal = Inef. Trib + Diferença
+      - Coluna AR ('Diferença Real Acum. (Inef. Trib)'): soma das 12 colunas de Inef. Trib
+      - Coluna AS ('Diferença Real Acum. (Diferença)'): soma das 12 colunas de Diferença
+      - Coluna AT ('Diferença Real Acum. (Inef. Líq.)'): soma das 12 colunas de Inef. Líq.
+      - Coluna AU ('Sugestão Diferença'): classificação baseada na Coluna AS
     """
-    inef_trib = round(inef_trib_atual or 0.0, 2)
-    diferenca = round(diferenca_atual or 0.0, 2)
+    inef_trib = round(float(inef_trib_atual or 0.0), 2)
+    diferenca = round(float(diferenca_atual or 0.0), 2)
     inef_liquida = round(inef_trib + diferenca, 2)
 
-    if diferencas_historico_mensal is not None:
-        dif_real_acumulada = round(sum(diferencas_historico_mensal) + diferenca, 2)
+    if inef_trib_historico_mensal is not None:
+        acum_inef_trib_ar = round(sum(float(v or 0.0) for v in inef_trib_historico_mensal) + inef_trib, 2)
     else:
-        dif_real_acumulada = round((dif_acumulada_mes_anterior or 0.0) + diferenca, 2)
+        acum_inef_trib_ar = round(float(inef_trib_acumulada_mes_anterior or 0.0) + inef_trib, 2)
 
-    if dif_real_acumulada > 0:
-        sugestao_diferenca = "Receita Bruta maior que Despesa"
-    elif dif_real_acumulada < 0:
-        sugestao_diferenca = "Despesa maior que Receita Bruta"
+    if diferencas_historico_mensal is not None:
+        acum_diferenca_as = round(sum(float(v or 0.0) for v in diferencas_historico_mensal) + diferenca, 2)
     else:
-        sugestao_diferenca = "Sem diferença"
+        acum_diferenca_as = round(float(dif_acumulada_mes_anterior or 0.0) + diferenca, 2)
+
+    acum_inef_liq_at = round(acum_inef_trib_ar + acum_diferenca_as, 2)
+    sugestao_au = sugerir_diferenca_resultado(acum_diferenca_as)
 
     return {
         "inef_trib": inef_trib,
         "diferenca": diferenca,
         "inef_liquida": inef_liquida,
-        "dif_real_acumulada_ar": dif_real_acumulada,
-        "sugestao_diferenca_as": sugestao_diferenca,
+        "acum_inef_trib_ar": acum_inef_trib_ar,
+        "acum_diferenca_as": acum_diferenca_as,
+        "acum_inef_liq_at": acum_inef_liq_at,
+        "sugestao_diferenca_au": sugestao_au,
+        # Aliases de compatibilidade
+        "dif_real_acumulada_ar": acum_diferenca_as,
+        "sugestao_diferenca_as": sugestao_au,
     }
+
+
+def recalcular_linha_resultado_anual(registro: dict[str, Any]) -> dict[str, Any]:
+    """
+    Recalcula Inef. Líq. de cada um dos 12 meses (Jan–Dez) e os acumulados
+    oficiais AR, AS, AT e AU de uma linha da aba Resumo.
+    """
+    soma_trib = 0.0
+    soma_dif = 0.0
+    soma_liq = 0.0
+
+    for chave, _, _, _, _ in MESES_RESULTADO:
+        raw_it = float(registro.get(f"{chave}_inef_trib") or 0.0)
+        raw_df = float(registro.get(f"{chave}_diferenca") or 0.0)
+        raw_lq = raw_it + raw_df
+        soma_trib += raw_it
+        soma_dif += raw_df
+        soma_liq += raw_lq
+        registro[f"{chave}_inef_trib"] = round(raw_it, 2)
+        registro[f"{chave}_diferenca"] = round(raw_df, 2)
+        registro[f"{chave}_inef_liq"] = round(raw_lq, 2)
+
+    acum_ar = round(soma_trib, 2)
+    acum_as = round(soma_dif, 2)
+    acum_at = round(soma_liq, 2)
+    sugestao_au = sugerir_diferenca_resultado(acum_as)
+
+    registro["acum_inef_trib_ar"] = acum_ar
+    registro["acum_diferenca_as"] = acum_as
+    registro["acum_inef_liq_at"] = acum_at
+    registro["sugestao_diferenca_au"] = sugestao_au
+    return registro
 
 
 def validar_totais_resultado_silver(
@@ -328,23 +403,31 @@ GROUP BY
         ELSE responsavel
     END;
 
--- 3. Tabela Silver: Painel de Controle — Eliminação de Resultado (Item 8)
+-- 3. Tabela Silver: Painel de Controle — Eliminação de Resultado (Item 8 — Aba Resumo)
 CREATE TABLE IF NOT EXISTS intercompany.silver.painel_eliminacao_resultado (
-    competencia STRING NOT NULL COMMENT 'Mês/Ano de fechamento (ex: 08/2026)',
-    responsavel STRING COMMENT 'Analista responsável pelo crossing',
-    cruzamento STRING NOT NULL COMMENT 'Identificador do crossing (ex: TBRA x ITIS)',
-    inef_trib_anterior DOUBLE COMMENT 'Ineficiência Tributária do mês anterior',
-    diferenca_anterior DOUBLE COMMENT 'Diferença / Divergência do mês anterior',
-    inef_liq_anterior DOUBLE COMMENT 'Ineficiência Líquida do mês anterior',
-    inef_trib_atual DOUBLE COMMENT 'Ineficiência Tributária do mês de fechamento (Quadro Receita)',
-    diferenca_atual DOUBLE COMMENT 'Divergência do mês de fechamento (Quadro Receita)',
-    inef_liq_atual DOUBLE COMMENT 'Ineficiência Líquida calculada automaticamente',
-    dif_real_acumulada_ar DOUBLE COMMENT 'Coluna AR: Diferença Real Acumulada de todos os meses',
-    sugestao_diferenca_as STRING COMMENT 'Coluna AS: Sugestão automática de diferença',
-    status_analista STRING COMMENT 'Status (Analista)',
-    status_revisor STRING COMMENT 'Status (Revisor)',
-    comentarios_analista STRING COMMENT 'Comentários (Analista)',
-    comentarios_revisor STRING COMMENT 'Comentários (Revisor)',
+    competencia STRING NOT NULL COMMENT 'Mês/Ano de fechamento (ex: 10/2026)',
+    responsavel STRING COMMENT 'Coluna B: Analista responsável pelo crossing',
+    cruzamento STRING NOT NULL COMMENT 'Coluna C: Identificador do crossing (ex: TBRA x ITIS)',
+    jan_inef_trib DOUBLE, jan_diferenca DOUBLE, jan_inef_liq DOUBLE,
+    fev_inef_trib DOUBLE, fev_diferenca DOUBLE, fev_inef_liq DOUBLE,
+    mar_inef_trib DOUBLE, mar_diferenca DOUBLE, mar_inef_liq DOUBLE,
+    abr_inef_trib DOUBLE, abr_diferenca DOUBLE, abr_inef_liq DOUBLE,
+    mai_inef_trib DOUBLE, mai_diferenca DOUBLE, mai_inef_liq DOUBLE,
+    jun_inef_trib DOUBLE, jun_diferenca DOUBLE, jun_inef_liq DOUBLE,
+    jul_inef_trib DOUBLE, jul_diferenca DOUBLE, jul_inef_liq DOUBLE,
+    ago_inef_trib DOUBLE, ago_diferenca DOUBLE, ago_inef_liq DOUBLE,
+    set_inef_trib DOUBLE, set_diferenca DOUBLE, set_inef_liq DOUBLE,
+    out_inef_trib DOUBLE, out_diferenca DOUBLE, out_inef_liq DOUBLE,
+    nov_inef_trib DOUBLE, nov_diferenca DOUBLE, nov_inef_liq DOUBLE,
+    dez_inef_trib DOUBLE, dez_diferenca DOUBLE, dez_inef_liq DOUBLE,
+    status_analista STRING COMMENT 'Coluna AN: Status (Analista)',
+    status_revisor STRING COMMENT 'Coluna AO: Status (Revisor)',
+    comentarios_analista STRING COMMENT 'Coluna AP: Comentários (Analista)',
+    comentarios_revisor STRING COMMENT 'Coluna AQ: Comentários (Revisor)',
+    acum_inef_trib_ar DOUBLE COMMENT 'Coluna AR: Diferença Real Acum. (Inef. Trib)',
+    acum_diferenca_as DOUBLE COMMENT 'Coluna AS: Diferença Real Acum. (Diferença)',
+    acum_inef_liq_at DOUBLE COMMENT 'Coluna AT: Diferença Real Acum. (Inef. Líq.)',
+    sugestao_diferenca_au STRING COMMENT 'Coluna AU: Sugestão Diferença baseada em AS',
     status_validador_silver STRING COMMENT 'Status do Validador Automático na Camada Silver',
     atualizado_em TIMESTAMP COMMENT 'Timestamp da última atualização'
 )
@@ -377,4 +460,3 @@ def gerar_query_merge_patrimonial() -> str:
         target.atualizado_em = current_timestamp()
     WHEN NOT MATCHED THEN INSERT *;
     """
-

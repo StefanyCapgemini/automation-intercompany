@@ -1,8 +1,8 @@
 """
 Leitor nativo (sem dependência obrigatória de openpyxl) para carregar e sincronizar:
   1. Painel Eliminação Patrimonial_08-2026.xlsx (Abas: Elimináveis, Sum, Temas Principais)
-  2. Painel Eliminação de Resultado (com Histórico Mensal, Coluna AR, Coluna AS e Validador Silver)
-  3. Extração automática dos Relatórios de Eliminação recebidos da Accenture (.xlsx / .xlsm)
+  2. Painel Eliminacao_Resultado_10-2026.xlsx (Abas: Todos Cruzamentos, Resumo, Aliquotas, Tabela de alíquotas)
+  3. Base inicial do Item 9 (Composições Gerais e Elimináveis Patrimonial)
 """
 
 from __future__ import annotations
@@ -13,15 +13,21 @@ import xml.etree.ElementTree as ET
 from typing import Any
 
 from pipeline_silver_gold import (
+    MESES_RESULTADO,
     calcular_metricas_patrimonial,
-    calcular_metricas_resultado,
     classificar_item9_eliminacao_x_compfinal,
     classificar_item9_expurgadas_compfinal,
     classificar_item9_somente_compfinal,
     classificar_item9_somente_eliminacao,
+    recalcular_linha_resultado_anual,
 )
 
-NS_MAIN = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+NS_MAIN = {
+    "m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main",
+    "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+}
+PROJETO_DIR = Path(__file__).resolve().parents[1]
+PLANILHA_RESULTADO_PADRAO = PROJETO_DIR / "documentacao" / "Painel Eliminacao_Resultado_10-2026.xlsx"
 
 
 def _col_letter_from_ref(ref: str) -> str:
@@ -35,12 +41,84 @@ def _parse_float(val: Any) -> float:
     if isinstance(val, (int, float)):
         return float(val)
     s = str(val).strip()
-    if s.startswith("#"):
+    if not s or s.startswith("#"):
         return 0.0
+    negativo = False
+    if s.startswith("(") and s.endswith(")"):
+        negativo = True
+        s = s[1:-1].strip()
+    s = s.replace("R$", "").replace(" ", "")
+    # Suporta formato brasileiro (ex: "1.234,56" ou "0,85") e formato padrão ("-1234.56")
+    if "," in s and "." in s:
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")
+        else:
+            s = s.replace(",", "")
+    elif "," in s:
+        s = s.replace(",", ".")
     try:
-        return float(s)
+        num = float(s)
+        return -abs(num) if negativo else num
     except ValueError:
         return 0.0
+
+
+def _ler_shared_strings(z: zipfile.ZipFile) -> list[str]:
+    if "xl/sharedStrings.xml" not in z.namelist():
+        return []
+    ss_root = ET.fromstring(z.read("xl/sharedStrings.xml"))
+    return [
+        "".join(t.text or "" for t in si.findall(".//m:t", NS_MAIN))
+        for si in ss_root.findall("m:si", NS_MAIN)
+    ]
+
+
+def _mapear_abas_xlsx(z: zipfile.ZipFile) -> dict[str, str]:
+    wb = ET.fromstring(z.read("xl/workbook.xml"))
+    rels = ET.fromstring(z.read("xl/_rels/workbook.xml.rels"))
+    rel_map = {el.attrib["Id"]: el.attrib["Target"] for el in rels}
+    abas: dict[str, str] = {}
+    for sh in wb.findall(".//m:sheet", NS_MAIN):
+        nome = sh.attrib["name"]
+        rid = sh.attrib["{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"]
+        target = "xl/" + rel_map[rid].lstrip("/")
+        abas[nome] = target
+    return abas
+
+
+def _ler_linhas_sheet(
+    z: zipfile.ZipFile,
+    sheet_path: str,
+    strings: list[str],
+) -> dict[int, dict[str, Any]]:
+    sroot = ET.fromstring(z.read(sheet_path))
+    resultado: dict[int, dict[str, Any]] = {}
+    for r in sroot.findall(".//m:sheetData/m:row", NS_MAIN):
+        r_num = int(r.attrib.get("r", "0"))
+        row_dict: dict[str, Any] = {}
+        for c in r.findall("m:c", NS_MAIN):
+            ref = c.attrib.get("r", "")
+            col = _col_letter_from_ref(ref)
+            ctype = c.attrib.get("t", "")
+            v_elem = c.find("m:v", NS_MAIN)
+            is_elem = c.find("m:is", NS_MAIN)
+            if is_elem is not None:
+                val = "".join(t.text or "" for t in is_elem.findall(".//m:t", NS_MAIN))
+            else:
+                val = v_elem.text if (v_elem is not None and v_elem.text is not None) else ""
+                if ctype == "s" and val.isdigit():
+                    val = strings[int(val)]
+            row_dict[col] = val
+        if row_dict:
+            resultado[r_num] = row_dict
+    return resultado
+
+
+def _extrair_competencia_nome_arquivo(caminho_xlsx: Path, padrao: str) -> str:
+    m = re.search(r"(?<!\d)(0?[1-9]|1[0-2])[_-](20\d{2})(?!\d)", caminho_xlsx.stem)
+    if not m:
+        return padrao
+    return f"{m.group(1).zfill(2)}/{m.group(2)}"
 
 
 def carregar_painel_patrimonial_xlsx(caminho_xlsx: Path) -> dict[str, list[dict[str, Any]]]:
@@ -51,35 +129,12 @@ def carregar_painel_patrimonial_xlsx(caminho_xlsx: Path) -> dict[str, list[dict[
       - temas_principais (temas comuns desconciliados)
     """
     with zipfile.ZipFile(caminho_xlsx, "r") as z:
-        ss_root = ET.fromstring(z.read("xl/sharedStrings.xml"))
-        strings = [
-            "".join(t.text or "" for t in si.findall(".//m:t", NS_MAIN))
-            for si in ss_root.findall("m:si", NS_MAIN)
-        ]
+        strings = _ler_shared_strings(z)
+        rows_elim = _ler_linhas_sheet(z, "xl/worksheets/sheet1.xml", strings)
+        rows_sum = _ler_linhas_sheet(z, "xl/worksheets/sheet2.xml", strings)
+        rows_temas = _ler_linhas_sheet(z, "xl/worksheets/sheet3.xml", strings)
 
-        def ler_linhas(sheet_path: str) -> dict[int, dict[str, Any]]:
-            sroot = ET.fromstring(z.read(sheet_path))
-            resultado: dict[int, dict[str, Any]] = {}
-            for r in sroot.findall(".//m:row", NS_MAIN):
-                r_num = int(r.attrib.get("r", "0"))
-                row_dict: dict[str, Any] = {}
-                for c in r.findall("m:c", NS_MAIN):
-                    ref = c.attrib.get("r", "")
-                    col = _col_letter_from_ref(ref)
-                    ctype = c.attrib.get("t", "")
-                    v_elem = c.find("m:v", NS_MAIN)
-                    val = v_elem.text if v_elem is not None else ""
-                    if ctype == "s" and val.isdigit():
-                        val = strings[int(val)]
-                    row_dict[col] = val
-                if row_dict:
-                    resultado[r_num] = row_dict
-            return resultado
-
-        rows_elim = ler_linhas("xl/worksheets/sheet1.xml")
-        rows_sum = ler_linhas("xl/worksheets/sheet2.xml")
-        rows_temas = ler_linhas("xl/worksheets/sheet3.xml")
-
+    competencia = _extrair_competencia_nome_arquivo(caminho_xlsx, "08/2026")
     eliminaveis = []
     for r_num in range(5, 34):
         row = rows_elim.get(r_num, {})
@@ -95,7 +150,7 @@ def carregar_painel_patrimonial_xlsx(caminho_xlsx: Path) -> dict[str, list[dict[
         eliminaveis.append(
             {
                 "linha": r_num,
-                "competencia": "08/2026",
+                "competencia": competencia,
                 "responsavel": str(row.get("B", "")).strip(),
                 "cruzamento": str(row.get("C", "")).strip(),
                 "ativo_1": ativo_1,
@@ -152,215 +207,138 @@ def carregar_painel_patrimonial_xlsx(caminho_xlsx: Path) -> dict[str, list[dict[
     }
 
 
-def carregar_dados_iniciais_resultado() -> list[dict[str, Any]]:
+def carregar_painel_resultado_xlsx(
+    caminho_xlsx: Path,
+    incluir_aliquotas: bool = True,
+) -> dict[str, list[dict[str, Any]]]:
     """
-    Retorna a base inicial do Painel de Controle de Eliminação de Resultado (Item 8),
-    espelhando fielmente os cruzamentos, valores de Julho e Agosto, Coluna AR
-    (Diferença Real Acumulada), Coluna AS (Sugestão de Diferença), Status e Comentários
-    mapeados no Documento Funcional da Fase 2 — Eliminação Resultado.
+    Lê as abas de 'Painel Eliminacao_Resultado_10-2026.xlsx':
+      - resumo (29 cruzamentos, 12 meses Jan–Dez + colunas AR, AS, AT, AU e status/comentários)
+      - todos_cruzamentos (66 cruzamentos de referência)
+      - aliquotas (aba 'Aliquotas')
+      - tabela_aliquotas (aba 'Tabela de alíquotas')
     """
-    registros_base = [
-        {
-            "responsavel": "Incorporada",
-            "cruzamento": "CLOUD x FIBR",
-            "jul_inef_trib": 0.00,
-            "jul_diferenca": -95435.53,
-            "ago_inef_trib": 0.00,
-            "ago_diferenca": 0.00,
-            "acumulado_previo": -95435.53,
-            "status_analista": "Incorporada",
-            "status_revisor": "Incorporada",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Cibele",
-            "cruzamento": "CLOUD x VSCD",
-            "jul_inef_trib": 0.00,
-            "jul_diferenca": -459196.37,
-            "ago_inef_trib": 1508218.85,
-            "ago_diferenca": 81784.08,
-            "acumulado_previo": 574350.87,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "Tratativa dada a Azure",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Incorporada",
-            "cruzamento": "CYBR x CLOUD",
-            "jul_inef_trib": 0.00,
-            "jul_diferenca": 0.00,
-            "ago_inef_trib": 0.00,
-            "ago_diferenca": 0.00,
-            "acumulado_previo": 0.00,
-            "status_analista": "Incorporada",
-            "status_revisor": "Incorporada",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Thais",
-            "cruzamento": "ITIS x CLOUD",
-            "jul_inef_trib": -66323.37,
-            "jul_diferenca": -26899.27,
-            "ago_inef_trib": -58620.06,
-            "ago_diferenca": 3578.98,
-            "acumulado_previo": -860859.01,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Incorporada",
-            "cruzamento": "ITIS X CYBR",
-            "jul_inef_trib": 0.00,
-            "jul_diferenca": 0.00,
-            "ago_inef_trib": 0.00,
-            "ago_diferenca": 0.00,
-            "acumulado_previo": 0.00,
-            "status_analista": "Incorporada",
-            "status_revisor": "Incorporada",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Mayara",
-            "cruzamento": "ITIS x TERRA",
-            "jul_inef_trib": -10857.10,
-            "jul_diferenca": 32890.22,
-            "ago_inef_trib": -2525.77,
-            "ago_diferenca": -2182.92,
-            "acumulado_previo": 64607.48,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Beatriz",
-            "cruzamento": "ITIS x TGLOG",
-            "jul_inef_trib": 0.00,
-            "jul_diferenca": -123.58,
-            "ago_inef_trib": 0.00,
-            "ago_diferenca": -123.58,
-            "acumulado_previo": 74634.30,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "",
-            "comentarios_revisor": "Avaliar do que se trata esse valor tão pequeno para que ele seja conciliado ou até mesmo cancelado.",
-        },
-        {
-            "responsavel": "Thais",
-            "cruzamento": "TBRA x CLOUD",
-            "jul_inef_trib": -2467838.26,
-            "jul_diferenca": 284225.83,
-            "ago_inef_trib": -2226172.98,
-            "ago_diferenca": 828825.93,
-            "acumulado_previo": 284225.83,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "A dif refere principalmente a 800k de diferimento",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Incorporada",
-            "cruzamento": "TBRA X CYBR",
-            "jul_inef_trib": 0.00,
-            "jul_diferenca": 0.00,
-            "ago_inef_trib": 0.00,
-            "ago_diferenca": 0.00,
-            "acumulado_previo": 0.00,
-            "status_analista": "Incorporada",
-            "status_revisor": "Incorporada",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Incorporada",
-            "cruzamento": "TBRA x FIBR",
-            "jul_inef_trib": -9636061.57,
-            "jul_diferenca": 6763484.66,
-            "ago_inef_trib": 0.00,
-            "ago_diferenca": 0.00,
-            "acumulado_previo": 0.00,
-            "status_analista": "Incorporada",
-            "status_revisor": "Incorporada",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Thais",
-            "cruzamento": "TBRA x I2GO",
-            "jul_inef_trib": -182120.07,
-            "jul_diferenca": 568874.43,
-            "ago_inef_trib": -276513.02,
-            "ago_diferenca": -522605.87,
-            "acumulado_previo": 568874.43,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Thais",
-            "cruzamento": "VSS x I2GO",
-            "jul_inef_trib": 0.00,
-            "jul_diferenca": 0.00,
-            "ago_inef_trib": 0.00,
-            "ago_diferenca": 0.00,
-            "acumulado_previo": 0.00,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "",
-            "comentarios_revisor": "",
-        },
-        {
-            "responsavel": "Mayara",
-            "cruzamento": "TBRA x ITIS",
-            "jul_inef_trib": -2066610.79,
-            "jul_diferenca": -2329361.23,
-            "ago_inef_trib": -3006095.79,
-            "ago_diferenca": 9570296.94,
-            "acumulado_previo": -2329361.23,
-            "status_analista": "Enviado para reporting",
-            "status_revisor": "Ok para envio",
-            "comentarios_analista": "A diferença de R$ 9,5MM refere-se principalmente pelo valor do lucro não realizado de R$ 8,3MM, que até o mês anterior estava mascarado por ajustes de provisões e diferimentos",
-            "comentarios_revisor": "Deixar no radar os ajustes que foram feitos pelas áreas de negócios caso tenha algum impacto",
-        },
+    caminho_xlsx = Path(caminho_xlsx)
+    competencia = _extrair_competencia_nome_arquivo(caminho_xlsx, "10/2026")
+
+    with zipfile.ZipFile(caminho_xlsx, "r") as z:
+        strings = _ler_shared_strings(z)
+        abas = _mapear_abas_xlsx(z)
+
+        sheet_cruz = abas.get("Todos Cruzamentos", "xl/worksheets/sheet1.xml")
+        sheet_resumo = abas.get("Resumo", "xl/worksheets/sheet2.xml")
+        sheet_aliq = abas.get("Aliquotas", "xl/worksheets/sheet3.xml")
+        sheet_tab_aliq = abas.get("Tabela de alíquotas", "xl/worksheets/sheet4.xml")
+
+        rows_cruz = _ler_linhas_sheet(z, sheet_cruz, strings)
+        rows_resumo = _ler_linhas_sheet(z, sheet_resumo, strings)
+        rows_aliq = _ler_linhas_sheet(z, sheet_aliq, strings) if incluir_aliquotas else {}
+        rows_tab_aliq = _ler_linhas_sheet(z, sheet_tab_aliq, strings) if incluir_aliquotas else {}
+
+    resumo: list[dict[str, Any]] = []
+    for r_num in sorted(rows_resumo):
+        if r_num < 3:
+            continue
+        row = rows_resumo[r_num]
+        cruzamento = str(row.get("C", "")).strip()
+        if not cruzamento:
+            continue
+
+        registro: dict[str, Any] = {
+            "linha": r_num,
+            "competencia": competencia,
+            "responsavel": str(row.get("B", "")).strip(),
+            "cruzamento": cruzamento,
+        }
+
+        for chave, _, col_trib, col_dif, _ in MESES_RESULTADO:
+            registro[f"{chave}_inef_trib"] = _parse_float(row.get(col_trib))
+            registro[f"{chave}_diferenca"] = _parse_float(row.get(col_dif))
+
+        recalcular_linha_resultado_anual(registro)
+
+        status_analista = str(row.get("AN", "")).strip() or "Sem movimento"
+        status_revisor = str(row.get("AO", "")).strip()
+        if not status_revisor and status_analista == "Incorporada":
+            status_revisor = "Incorporada"
+        elif not status_revisor:
+            status_revisor = "Sem movimento"
+
+        registro["status_analista"] = status_analista
+        registro["status_revisor"] = status_revisor
+        registro["comentarios_analista"] = str(row.get("AP", "")).strip()
+        registro["comentarios_revisor"] = str(row.get("AQ", "")).strip()
+        registro["validador_silver"] = "Validado (OK Rec Liq | OK Inef Tribut | OK Despesa)"
+
+        resumo.append(registro)
+
+    todos_cruzamentos = [
+        {"ordem": idx, "cruzamento": str(rows_cruz[r_num].get("B", "")).strip()}
+        for idx, r_num in enumerate(
+            (r for r in sorted(rows_cruz) if r >= 2 and str(rows_cruz[r].get("B", "")).strip()),
+            start=1,
+        )
     ]
 
-    saida = []
-    for idx, r in enumerate(registros_base, start=1):
-        jul_liq = round(r["jul_inef_trib"] + r["jul_diferenca"], 2)
-        calc = calcular_metricas_resultado(
-            r["ago_inef_trib"],
-            r["ago_diferenca"],
-            dif_acumulada_mes_anterior=r["acumulado_previo"],
-        )
-        saida.append(
-            {
-                "linha": idx,
-                "competencia": "08/2026",
-                "responsavel": r["responsavel"],
-                "cruzamento": r["cruzamento"],
-                "jul_inef_trib": r["jul_inef_trib"],
-                "jul_diferenca": r["jul_diferenca"],
-                "jul_inef_liq": jul_liq,
-                "ago_inef_trib": calc["inef_trib"],
-                "ago_diferenca": calc["diferenca"],
-                "ago_inef_liq": calc["inef_liquida"],
-                "dif_real_acumulada_ar": calc["dif_real_acumulada_ar"],
-                "sugestao_diferenca_as": calc["sugestao_diferenca_as"],
-                "status_analista": r["status_analista"],
-                "status_revisor": r["status_revisor"],
-                "comentarios_analista": r["comentarios_analista"],
-                "comentarios_revisor": r["comentarios_revisor"],
-                "validador_silver": "Validado (OK Rec Liq | OK Inef Tribut | OK Despesa)",
-            }
-        )
-    return saida
+    aliquotas: list[dict[str, Any]] = []
+    if incluir_aliquotas:
+        for r_num in sorted(rows_aliq):
+            if r_num < 2:
+                continue
+            row = rows_aliq[r_num]
+            conta = str(row.get("A", "")).strip()
+            if not conta:
+                continue
+            aliquotas.append(
+                {
+                    "conta": conta,
+                    "icms": round(_parse_float(row.get("B")), 4),
+                    "iss": round(_parse_float(row.get("C")), 4),
+                    "pis": round(_parse_float(row.get("D")), 4),
+                    "cofins": round(_parse_float(row.get("E")), 4),
+                    "total": round(_parse_float(row.get("F")), 4),
+                }
+            )
+
+    tabela_aliquotas: list[dict[str, Any]] = []
+    if incluir_aliquotas:
+        for r_num in sorted(rows_tab_aliq):
+            if r_num < 2:
+                continue
+            row = rows_tab_aliq[r_num]
+            chave_base = str(row.get("A", "")).strip()
+            if not chave_base:
+                continue
+            tabela_aliquotas.append(
+                {
+                    "chave_base": chave_base,
+                    "empresa": str(row.get("B", "")).strip(),
+                    "conta": str(row.get("C", "")).strip(),
+                    "icms": round(_parse_float(row.get("D")), 4),
+                    "iss": round(_parse_float(row.get("E")), 4),
+                    "pis": round(_parse_float(row.get("F")), 4),
+                    "cofins": round(_parse_float(row.get("G")), 4),
+                    "total_aliquota": round(_parse_float(row.get("H")), 4),
+                }
+            )
+
+    return {
+        "resumo": resumo,
+        "todos_cruzamentos": todos_cruzamentos,
+        "aliquotas": aliquotas,
+        "tabela_aliquotas": tabela_aliquotas,
+    }
+
+
+def carregar_dados_iniciais_resultado(
+    caminho_xlsx: Path | None = None,
+) -> list[dict[str, Any]]:
+    """
+    Carrega os 29 cruzamentos oficiais da aba 'Resumo' do Painel de Eliminação de Resultado
+    (por padrão 'documentacao/Painel Eliminacao_Resultado_10-2026.xlsx').
+    """
+    alvo = PLANILHA_RESULTADO_PADRAO if caminho_xlsx is None else Path(caminho_xlsx)
+    return carregar_painel_resultado_xlsx(alvo, incluir_aliquotas=False)["resumo"]
 
 
 def carregar_dados_iniciais_item9_patrimonial() -> dict[str, list[dict[str, Any]]]:
@@ -476,4 +454,3 @@ def carregar_dados_iniciais_item9_patrimonial() -> dict[str, list[dict[str, Any]
         "somente_compfinal": aba3,
         "somente_eliminacao": aba4,
     }
-
