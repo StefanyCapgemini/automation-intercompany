@@ -8,6 +8,8 @@ Paleta oficial extraída do Documento Funcional (#5A189A, #2B0A4E, #C7A6E8, #6E6
 """
 
 from __future__ import annotations
+import calendar
+from datetime import date
 import json
 import streamlit as st
 
@@ -2746,6 +2748,48 @@ def formatar_brl(valor):
     return f"-R$ {s}" if neg else f"R$ {s}"
 
 
+def _extrair_intervalo_competencia(texto: str) -> tuple[date, date] | None:
+    s = str(texto or "").strip()
+    if not s:
+        return None
+    partes = s.replace("-", "/").split("/")
+    try:
+        if len(partes) == 2:
+            if len(partes[0]) == 4:
+                ano, mes = int(partes[0]), int(partes[1])
+            else:
+                mes, ano = int(partes[0]), int(partes[1])
+            ultimo_dia = calendar.monthrange(ano, mes)[1]
+            return date(ano, mes, 1), date(ano, mes, ultimo_dia)
+        if len(partes) == 3:
+            if len(partes[0]) == 4:
+                d = date(int(partes[0]), int(partes[1]), int(partes[2]))
+            else:
+                d = date(int(partes[2]), int(partes[1]), int(partes[0]))
+            return d, d
+    except (ValueError, IndexError):
+        return None
+    return None
+
+
+def registro_dentro_filtro_data(competencia_str: str, filtro_data) -> bool:
+    if not filtro_data:
+        return True
+    if isinstance(filtro_data, (tuple, list)):
+        if len(filtro_data) == 0:
+            return True
+        dt_ini = filtro_data[0]
+        dt_fim = filtro_data[1] if len(filtro_data) > 1 else filtro_data[0]
+    else:
+        dt_ini = dt_fim = filtro_data
+
+    intervalo_reg = _extrair_intervalo_competencia(competencia_str)
+    if intervalo_reg is None:
+        return True
+    reg_ini, reg_fim = intervalo_reg
+    return not (reg_fim < dt_ini or reg_ini > dt_fim)
+
+
 def renderizar_kpi_cards(cards: list[tuple[str, str]]) -> None:
     colunas = st.columns(len(cards))
     for col, (rotulo, valor) in zip(colunas, cards):
@@ -2895,26 +2939,44 @@ def main():
     # ==========================================================================
     with aba_pat:
         registros_pat = st.session_state.dados_pat["eliminaveis"]
-        c1, c2, c3, c4, c5 = st.columns(5)
+        c_dt, c1, c2, c3, c4, c5 = st.columns(6)
         resps = sorted({r["responsavel"] for r in registros_pat if r["responsavel"]})
+        with c_dt:
+            f_data_pat = st.date_input(
+                "Data / Período",
+                value=(date(2026, 8, 1), date(2026, 8, 31)),
+                format="DD/MM/YYYY",
+                key="f_data_pat",
+            )
         with c1:
-            f_resp = st.multiselect("Responsável", resps)
+            f_resp = st.multiselect("Responsável", resps, key="f_resp_pat")
         with c2:
-            f_st_ana = st.multiselect("Status (Analista)", STATUS_ANALISTA_OPCOES)
+            f_st_ana = st.multiselect("Status (Analista)", STATUS_ANALISTA_OPCOES, key="f_st_ana_pat")
         with c3:
-            f_st_rev = st.multiselect("Status (Revisor)", STATUS_REVISOR_OPCOES)
+            f_st_rev = st.multiselect("Status (Revisor)", STATUS_REVISOR_OPCOES, key="f_st_rev_pat")
         with c4:
-            f_mov = st.selectbox("Movimentação", ["Todos", "Com movimentação (!= 0)", "Sem movimentação (= 0)", "Ocultar Incorporadas"])
+            f_mov = st.selectbox(
+                "Movimentação",
+                ["Todos", "Com movimentação (!= 0)", "Sem movimentação (= 0)", "Ocultar Incorporadas"],
+                key="f_mov_pat",
+            )
         with c5:
-            ord_por = st.selectbox("Ordenar por", ["Ordem Padrão", "Empresa (A-Z)", "Maior Dif. Líquida", "Menor Dif. Líquida", "Responsável"])
+            ord_por = st.selectbox(
+                "Ordenar por",
+                ["Ordem Padrão", "Empresa (A-Z)", "Maior Dif. Líquida", "Menor Dif. Líquida", "Responsável"],
+                key="ord_por_pat",
+            )
 
         busca = st.text_input(
             "Buscar por Empresa/Cruzamento ou Comentários (Analista / Revisor)",
             placeholder="Ex.: TBRA x ITIS, Azure, provisão...",
+            key="busca_pat",
         )
 
         filtrados = []
         for r in registros_pat:
+            if not registro_dentro_filtro_data(r.get("competencia", ""), f_data_pat):
+                continue
             if f_resp and r["responsavel"] not in f_resp:
                 continue
             if f_st_ana and r["status_analista"] not in f_st_ana:

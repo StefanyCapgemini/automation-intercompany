@@ -87,6 +87,17 @@ class DatabricksPainelTests(unittest.TestCase):
         # Verifica função de carga padrão
         self.assertEqual(len(carregar_dados_iniciais_resultado()), 29)
 
+    def test_filtro_calendario_patrimonial_restaurado(self):
+        import types
+        from datetime import date
+        sys.modules.setdefault("streamlit", types.ModuleType("streamlit"))
+        import app as painel_app
+
+        self.assertTrue(painel_app.registro_dentro_filtro_data("08/2026", (date(2026, 8, 1), date(2026, 8, 31))))
+        self.assertTrue(painel_app.registro_dentro_filtro_data("08/2026", (date(2026, 8, 15), date(2026, 9, 10))))
+        self.assertFalse(painel_app.registro_dentro_filtro_data("08/2026", (date(2026, 9, 1), date(2026, 9, 30))))
+        self.assertTrue(painel_app.registro_dentro_filtro_data("08/2026", ()))
+
     def test_metricas_resultado_colunas_ar_as_at_au(self):
         calc_pos = calcular_metricas_resultado(
             -2888494.16,
